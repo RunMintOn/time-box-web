@@ -1,0 +1,702 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Time Box · V0</title>
+  <style>
+    :root {
+      --bg: #0c0d10;
+      --panel: #121419;
+      --panel-2: #171a20;
+      --line: #292d36;
+      --line-soft: #20242c;
+      --text: #f3f4f6;
+      --muted: #8d94a3;
+      --context: rgba(139, 152, 176, .13);
+      --context-border: rgba(175, 187, 208, .32);
+      --activity: #f2f3f5;
+      --activity-text: #15171b;
+      --accent: #b7ff67;
+      --danger: #ff7c7c;
+      --radius: 12px;
+      --timeline-height: 720px;
+    }
+
+    * { box-sizing: border-box; }
+    html, body { margin: 0; min-height: 100%; background: var(--bg); color: var(--text); font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; }
+    button, input, select { font: inherit; }
+    button { cursor: pointer; }
+
+    .app {
+      min-height: 100vh;
+      display: grid;
+      grid-template-rows: auto 1fr;
+    }
+
+    header {
+      height: 62px;
+      border-bottom: 1px solid var(--line);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 0 18px;
+      position: sticky;
+      top: 0;
+      z-index: 50;
+      background: rgba(12, 13, 16, .94);
+      backdrop-filter: blur(14px);
+    }
+
+    .brand { display: flex; align-items: baseline; gap: 10px; }
+    .brand strong { font-size: 17px; letter-spacing: .02em; }
+    .brand span { color: var(--muted); font-size: 12px; }
+    .top-actions { display: flex; gap: 8px; }
+
+    .btn {
+      border: 1px solid var(--line);
+      background: var(--panel-2);
+      color: var(--text);
+      border-radius: 9px;
+      padding: 8px 11px;
+    }
+    .btn:hover { border-color: #444a57; }
+    .btn.primary { background: var(--text); color: #111318; border-color: var(--text); font-weight: 650; }
+    .btn.ghost { background: transparent; }
+    .btn.danger { color: var(--danger); }
+    .btn.small { padding: 5px 8px; font-size: 12px; }
+
+    .workspace {
+      display: grid;
+      grid-template-columns: 235px minmax(900px, 1fr);
+      min-height: 0;
+    }
+
+    aside {
+      border-right: 1px solid var(--line);
+      padding: 16px 13px;
+      background: var(--panel);
+      position: sticky;
+      top: 62px;
+      height: calc(100vh - 62px);
+      overflow: auto;
+      z-index: 20;
+    }
+
+    .section-title {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 10px;
+    }
+    .section-title h2 { font-size: 12px; color: var(--muted); letter-spacing: .09em; text-transform: uppercase; margin: 0; }
+    .hint { font-size: 11px; color: #707785; line-height: 1.45; margin: 10px 2px 16px; }
+
+    .activity-list { display: grid; gap: 8px; }
+    .activity-card {
+      border: 1px solid var(--line);
+      border-radius: 10px;
+      background: var(--panel-2);
+      padding: 10px;
+      user-select: none;
+    }
+    .activity-card[draggable="true"] { cursor: grab; }
+    .activity-card.dragging { opacity: .45; }
+    .activity-card .name { font-weight: 650; font-size: 14px; margin-bottom: 6px; }
+    .activity-card .meta { display: flex; gap: 6px; flex-wrap: wrap; color: var(--muted); font-size: 11px; }
+    .pill { border: 1px solid #333845; border-radius: 999px; padding: 2px 6px; }
+    .activity-card .row { display: flex; justify-content: space-between; align-items: center; gap: 6px; margin-top: 8px; }
+    .activity-card .progress { font-size: 11px; color: var(--muted); }
+
+    main { overflow: auto; padding: 0 14px 30px; }
+    .week-wrap { min-width: 980px; }
+
+    .week-head {
+      display: grid;
+      grid-template-columns: 48px repeat(7, minmax(120px, 1fr));
+      position: sticky;
+      top: 62px;
+      z-index: 15;
+      background: var(--bg);
+      border-bottom: 1px solid var(--line);
+    }
+    .week-head .spacer { border-right: 1px solid var(--line); }
+    .day-head { padding: 12px 10px 10px; border-right: 1px solid var(--line); }
+    .day-head strong { display: block; font-size: 13px; }
+    .day-head span { color: var(--muted); font-size: 11px; }
+
+    .board {
+      display: grid;
+      grid-template-columns: 48px repeat(7, minmax(120px, 1fr));
+      min-height: var(--timeline-height);
+    }
+
+    .soft-axis {
+      position: relative;
+      height: var(--timeline-height);
+      border-right: 1px solid var(--line);
+      color: var(--muted);
+      font-size: 10px;
+    }
+    .axis-label { position: absolute; right: 7px; transform: translateY(-50%); }
+    .axis-period { position: absolute; left: 4px; writing-mode: vertical-rl; letter-spacing: .12em; color: #5f6674; font-size: 9px; text-transform: uppercase; }
+
+    .day-column {
+      position: relative;
+      height: var(--timeline-height);
+      border-right: 1px solid var(--line);
+      background:
+        linear-gradient(to bottom,
+          rgba(255,255,255,.012) 0%, rgba(255,255,255,.012) 32%,
+          rgba(255,255,255,.025) 32%, rgba(255,255,255,.025) 68%,
+          rgba(255,255,255,.008) 68%, rgba(255,255,255,.008) 100%);
+    }
+    .day-column::before, .day-column::after {
+      content: "";
+      position: absolute;
+      left: 0; right: 0;
+      border-top: 1px dashed var(--line-soft);
+      pointer-events: none;
+    }
+    .day-column::before { top: 32%; }
+    .day-column::after { top: 68%; }
+    .day-column.drop-target { outline: 1px solid rgba(183,255,103,.55); outline-offset: -2px; }
+
+    .context-block {
+      position: absolute;
+      left: 5px;
+      right: 5px;
+      background: var(--context);
+      border: 1px solid var(--context-border);
+      border-radius: 10px;
+      padding: 7px 7px 6px;
+      overflow: hidden;
+      color: #c8ced9;
+      cursor: pointer;
+      z-index: 1;
+    }
+    .context-block .context-title { font-size: 11px; font-weight: 700; }
+    .context-block .context-meta { font-size: 9px; color: #8d96a7; margin-top: 3px; line-height: 1.35; }
+
+    .placement {
+      position: absolute;
+      left: 20%;
+      right: 7px;
+      z-index: 4;
+      min-height: 26px;
+      background: var(--activity);
+      color: var(--activity-text);
+      border-radius: 9px;
+      padding: 6px 7px;
+      box-shadow: 0 4px 18px rgba(0,0,0,.22);
+      overflow: hidden;
+      cursor: grab;
+      user-select: none;
+    }
+    .placement.dragging { opacity: .5; }
+    .placement .placement-title { font-size: 11px; font-weight: 750; line-height: 1.15; }
+    .placement .placement-meta { font-size: 9px; opacity: .66; margin-top: 3px; white-space: nowrap; }
+    .placement .repeat-dot {
+      position: absolute;
+      width: 5px; height: 5px;
+      border-radius: 50%;
+      right: 6px; top: 6px;
+      background: #40454f;
+    }
+
+    .now-line { position: absolute; left: 0; right: 0; height: 1px; background: var(--accent); z-index: 8; pointer-events: none; }
+    .now-line::before { content: ""; position: absolute; width: 6px; height: 6px; border-radius: 50%; background: var(--accent); left: -3px; top: -3px; }
+
+    dialog {
+      border: 1px solid var(--line);
+      border-radius: 14px;
+      background: #111319;
+      color: var(--text);
+      padding: 0;
+      width: min(430px, calc(100vw - 24px));
+      box-shadow: 0 24px 80px rgba(0,0,0,.5);
+    }
+    dialog::backdrop { background: rgba(0,0,0,.58); backdrop-filter: blur(2px); }
+    .dialog-body { padding: 18px; }
+    .dialog-body h3 { margin: 0 0 16px; font-size: 16px; }
+    .form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+    .field { display: grid; gap: 5px; }
+    .field.full { grid-column: 1 / -1; }
+    .field label { color: var(--muted); font-size: 11px; }
+    .field input, .field select {
+      width: 100%;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      background: var(--panel-2);
+      color: var(--text);
+      padding: 8px 9px;
+      outline: none;
+    }
+    .weekday-checks { display: flex; gap: 5px; flex-wrap: wrap; }
+    .weekday-checks label {
+      border: 1px solid var(--line);
+      border-radius: 7px;
+      padding: 6px 7px;
+      cursor: pointer;
+      color: var(--muted);
+    }
+    .weekday-checks input { display: none; }
+    .weekday-checks label:has(input:checked) { color: #111; background: var(--text); border-color: var(--text); }
+    .dialog-actions { display: flex; justify-content: space-between; align-items: center; gap: 8px; margin-top: 16px; }
+    .dialog-actions .right { display: flex; gap: 8px; }
+
+    .empty-note { color: #697180; font-size: 12px; border: 1px dashed var(--line); border-radius: 10px; padding: 12px; }
+
+    @media (max-width: 900px) {
+      .workspace { grid-template-columns: 190px minmax(840px, 1fr); }
+      aside { padding: 12px 10px; }
+    }
+  </style>
+</head>
+<body>
+<div class="app">
+  <header>
+    <div class="brand">
+      <strong>Time Box</strong>
+      <span>V0 · soft weekly board</span>
+    </div>
+    <div class="top-actions">
+      <button class="btn ghost" id="resetBtn">重置示例</button>
+      <button class="btn" id="addContextBtn">＋ Context</button>
+      <button class="btn primary" id="addActivityBtn">＋ Activity</button>
+    </div>
+  </header>
+
+  <div class="workspace">
+    <aside>
+      <div class="section-title">
+        <h2>Activities</h2>
+      </div>
+      <div class="hint">这是“事情本身”。拖到右边某一天，会创建一次 Placement；同一件事情可以出现很多次。</div>
+      <div id="activityList" class="activity-list"></div>
+    </aside>
+
+    <main>
+      <div class="week-wrap">
+        <div id="weekHead" class="week-head"></div>
+        <div id="board" class="board"></div>
+      </div>
+    </main>
+  </div>
+</div>
+
+<dialog id="activityDialog">
+  <form method="dialog" id="activityForm" class="dialog-body">
+    <h3 id="activityDialogTitle">Activity</h3>
+    <input type="hidden" id="activityId" />
+    <div class="form-grid">
+      <div class="field full"><label>名称</label><input id="activityTitle" required placeholder="例如：阅读" /></div>
+      <div class="field"><label>预计时长（分钟）</label><input id="activityDuration" type="number" min="10" step="5" value="30" required /></div>
+      <div class="field"><label>时间刚性</label>
+        <select id="activityRigidity">
+          <option value="flexible">Flexible · 随便放</option>
+          <option value="approx">Approx · 大概这个时间</option>
+          <option value="fixed">Fixed · 固定时间</option>
+        </select>
+      </div>
+      <div class="field full"><label>重复到哪些天（可留空）</label><div id="weekdayChecks" class="weekday-checks"></div></div>
+      <div class="field"><label>偏好时间（可选）</label><input id="activityPreferred" type="time" /></div>
+    </div>
+    <div class="dialog-actions">
+      <button type="button" class="btn danger" id="deleteActivityBtn" hidden>删除</button>
+      <div class="right">
+        <button type="button" class="btn" data-close="activityDialog">取消</button>
+        <button class="btn primary" value="save">保存</button>
+      </div>
+    </div>
+  </form>
+</dialog>
+
+<dialog id="contextDialog">
+  <form method="dialog" id="contextForm" class="dialog-body">
+    <h3>Context Block</h3>
+    <input type="hidden" id="contextId" />
+    <div class="form-grid">
+      <div class="field full"><label>背景 / 约束名称</label><input id="contextTitle" required placeholder="例如：课程" /></div>
+      <div class="field"><label>星期</label><select id="contextDay"></select></div>
+      <div class="field"><label>地点</label><input id="contextLocation" placeholder="教室 / 宿舍 / 图书馆" /></div>
+      <div class="field"><label>开始</label><input id="contextStart" type="time" value="08:50" required /></div>
+      <div class="field"><label>结束</label><input id="contextEnd" type="time" value="10:25" required /></div>
+      <div class="field"><label>精力</label>
+        <select id="contextEnergy"><option>低</option><option selected>中</option><option>高</option><option>放松</option></select>
+      </div>
+      <div class="field"><label>自由度</label>
+        <select id="contextFreedom"><option>低</option><option selected>中</option><option>高</option></select>
+      </div>
+    </div>
+    <div class="dialog-actions">
+      <button type="button" class="btn danger" id="deleteContextBtn" hidden>删除</button>
+      <div class="right">
+        <button type="button" class="btn" data-close="contextDialog">取消</button>
+        <button class="btn primary" value="save">保存</button>
+      </div>
+    </div>
+  </form>
+</dialog>
+
+<dialog id="placementDialog">
+  <form method="dialog" id="placementForm" class="dialog-body">
+    <h3>Placement</h3>
+    <input type="hidden" id="placementId" />
+    <div class="form-grid">
+      <div class="field full"><label>Activity</label><input id="placementActivityName" disabled /></div>
+      <div class="field"><label>星期</label><select id="placementDay"></select></div>
+      <div class="field"><label>开始</label><input id="placementStart" type="time" required /></div>
+      <div class="field"><label>这一次时长（分钟）</label><input id="placementDuration" type="number" min="10" step="5" required /></div>
+    </div>
+    <div class="dialog-actions">
+      <button type="button" class="btn danger" id="deletePlacementBtn">删除这一次</button>
+      <div class="right">
+        <button type="button" class="btn" data-close="placementDialog">取消</button>
+        <button class="btn primary" value="save">保存</button>
+      </div>
+    </div>
+  </form>
+</dialog>
+
+<script>
+(() => {
+  const DAYS = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
+  const DAY_CN = ["周一", "周二", "周三", "周四", "周五", "周六", "周日"];
+  const START_MIN = 8 * 60;
+  const END_MIN = 23 * 60;
+  const TOTAL_MIN = END_MIN - START_MIN;
+  const TIMELINE_HEIGHT = 720;
+  const STORAGE_KEY = "time-box-web-v0";
+
+  const uid = (prefix) => prefix + "_" + Math.random().toString(36).slice(2, 9);
+  const clamp = (n, min, max) => Math.min(max, Math.max(min, n));
+  const timeToMin = (s) => { const [h, m] = s.split(":").map(Number); return h * 60 + m; };
+  const minToTime = (m) => { m = Math.round(m); const h = Math.floor(m / 60) % 24; const mm = m % 60; return `${String(h).padStart(2,"0")}:${String(mm).padStart(2,"0")}`; };
+  const snap = (m, step = 10) => Math.round(m / step) * step;
+  const yFromMin = (m) => clamp((m - START_MIN) / TOTAL_MIN * TIMELINE_HEIGHT, 0, TIMELINE_HEIGHT);
+  const minFromY = (y) => snap(START_MIN + clamp(y, 0, TIMELINE_HEIGHT) / TIMELINE_HEIGHT * TOTAL_MIN);
+
+  const seed = () => ({
+    activities: [
+      { id: "a_read", title: "阅读", duration: 30, rigidity: "approx", repeatDays: [0,1,2,3,4], preferred: "21:00" },
+      { id: "a_gym", title: "锻炼", duration: 60, rigidity: "approx", repeatDays: [0,1,2,3,4], preferred: "16:10" },
+      { id: "a_deep", title: "自己的事情", duration: 90, rigidity: "flexible", repeatDays: [], preferred: "" }
+    ],
+    contexts: [
+      { id: "c_1", day: 0, title: "课程", start: "08:50", end: "10:25", location: "教室", energy: "中", freedom: "高" },
+      { id: "c_2", day: 0, title: "课程", start: "10:40", end: "12:15", location: "教室", energy: "中", freedom: "高" },
+      { id: "c_3", day: 2, title: "课程", start: "08:50", end: "10:25", location: "教室", energy: "中", freedom: "高" }
+    ],
+    placements: [
+      { id: "p_r1", activityId: "a_read", day: 0, start: "21:00", duration: 30 },
+      { id: "p_r2", activityId: "a_read", day: 1, start: "20:30", duration: 30 },
+      { id: "p_r3", activityId: "a_read", day: 2, start: "22:00", duration: 30 },
+      { id: "p_r4", activityId: "a_read", day: 3, start: "19:30", duration: 30 },
+      { id: "p_r5", activityId: "a_read", day: 4, start: "21:30", duration: 30 },
+      { id: "p_g1", activityId: "a_gym", day: 0, start: "16:10", duration: 60 },
+      { id: "p_g2", activityId: "a_gym", day: 1, start: "16:40", duration: 60 },
+      { id: "p_g3", activityId: "a_gym", day: 2, start: "15:50", duration: 60 },
+      { id: "p_g4", activityId: "a_gym", day: 3, start: "16:20", duration: 60 },
+      { id: "p_g5", activityId: "a_gym", day: 4, start: "17:00", duration: 60 },
+      { id: "p_d1", activityId: "a_deep", day: 0, start: "09:05", duration: 70 }
+    ]
+  });
+
+  let state;
+  try { state = JSON.parse(localStorage.getItem(STORAGE_KEY)) || seed(); }
+  catch { state = seed(); }
+
+  const $ = (s) => document.querySelector(s);
+  const activityList = $("#activityList");
+  const weekHead = $("#weekHead");
+  const board = $("#board");
+
+  const save = () => localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+  const activityById = (id) => state.activities.find(a => a.id === id);
+
+  function render() {
+    renderWeekHead();
+    renderActivityList();
+    renderBoard();
+  }
+
+  function renderWeekHead() {
+    weekHead.innerHTML = `<div class="spacer"></div>` + DAYS.map((d, i) => `<div class="day-head"><strong>${DAY_CN[i]}</strong><span>${d}</span></div>`).join("");
+  }
+
+  function renderActivityList() {
+    if (!state.activities.length) {
+      activityList.innerHTML = `<div class="empty-note">先创建一个 Activity，再把它拖到右边。</div>`;
+      return;
+    }
+    activityList.innerHTML = state.activities.map(a => {
+      const expected = a.repeatDays?.length || 0;
+      const actual = state.placements.filter(p => p.activityId === a.id).length;
+      const repeatLabel = expected ? a.repeatDays.map(i => DAYS[i]).join(" ") : "不重复";
+      return `<div class="activity-card" draggable="true" data-activity-id="${a.id}">
+        <div class="name">${escapeHtml(a.title)}</div>
+        <div class="meta">
+          <span class="pill">≈ ${a.duration}m</span>
+          <span class="pill">${escapeHtml(a.rigidity)}</span>
+        </div>
+        <div class="meta" style="margin-top:6px">${repeatLabel}</div>
+        <div class="row">
+          <span class="progress">${expected ? `${actual}/${expected} placements` : `${actual} placement${actual === 1 ? "" : "s"}`}</span>
+          <div>
+            ${expected ? `<button class="btn small" type="button" data-spread="${a.id}">铺到本周</button>` : ""}
+            <button class="btn small" type="button" data-edit-activity="${a.id}">编辑</button>
+          </div>
+        </div>
+      </div>`;
+    }).join("");
+
+    activityList.querySelectorAll(".activity-card").forEach(el => {
+      el.addEventListener("dragstart", e => {
+        el.classList.add("dragging");
+        e.dataTransfer.setData("text/plain", JSON.stringify({ type: "activity", activityId: el.dataset.activityId }));
+        e.dataTransfer.effectAllowed = "copy";
+      });
+      el.addEventListener("dragend", () => el.classList.remove("dragging"));
+    });
+
+    activityList.querySelectorAll("[data-edit-activity]").forEach(btn => btn.addEventListener("click", e => {
+      e.stopPropagation(); openActivityDialog(btn.dataset.editActivity);
+    }));
+    activityList.querySelectorAll("[data-spread]").forEach(btn => btn.addEventListener("click", e => {
+      e.stopPropagation(); spreadActivity(btn.dataset.spread);
+    }));
+  }
+
+  function renderBoard() {
+    board.innerHTML = renderAxis() + DAYS.map((_, day) => `<div class="day-column" data-day="${day}"></div>`).join("");
+
+    DAYS.forEach((_, day) => {
+      const col = board.querySelector(`.day-column[data-day="${day}"]`);
+      state.contexts.filter(c => c.day === day).forEach(c => col.appendChild(makeContext(c)));
+      state.placements.filter(p => p.day === day).forEach(p => col.appendChild(makePlacement(p)));
+      setupDrop(col, day);
+    });
+    drawNowLine();
+  }
+
+  function renderAxis() {
+    const marks = [
+      { t: "08:00", label: "08" },
+      { t: "12:00", label: "12" },
+      { t: "16:00", label: "16" },
+      { t: "20:00", label: "20" },
+      { t: "23:00", label: "23" }
+    ];
+    return `<div class="soft-axis">
+      ${marks.map(m => `<span class="axis-label" style="top:${yFromMin(timeToMin(m.t))}px">${m.label}</span>`).join("")}
+      <span class="axis-period" style="top:72px">MORNING</span>
+      <span class="axis-period" style="top:315px">AFTERNOON</span>
+      <span class="axis-period" style="top:570px">EVENING</span>
+    </div>`;
+  }
+
+  function makeContext(c) {
+    const el = document.createElement("div");
+    el.className = "context-block";
+    const start = timeToMin(c.start), end = timeToMin(c.end);
+    el.style.top = yFromMin(start) + "px";
+    el.style.height = Math.max(30, yFromMin(end) - yFromMin(start)) + "px";
+    el.innerHTML = `<div class="context-title">${escapeHtml(c.title)}</div><div class="context-meta">${c.start}–${c.end}${c.location ? ` · ${escapeHtml(c.location)}` : ""}<br>精力 ${escapeHtml(c.energy)} · 自由度 ${escapeHtml(c.freedom)}</div>`;
+    el.addEventListener("click", () => openContextDialog(c.id));
+    return el;
+  }
+
+  function makePlacement(p) {
+    const a = activityById(p.activityId);
+    if (!a) return document.createComment("missing activity");
+    const el = document.createElement("div");
+    el.className = "placement";
+    el.draggable = true;
+    el.dataset.placementId = p.id;
+    const start = timeToMin(p.start);
+    el.style.top = yFromMin(start) + "px";
+    el.style.height = Math.max(28, p.duration / TOTAL_MIN * TIMELINE_HEIGHT) + "px";
+    el.innerHTML = `<span class="repeat-dot"></span><div class="placement-title">${escapeHtml(a.title)}</div><div class="placement-meta">${p.start} · ${p.duration}m</div>`;
+    el.addEventListener("dblclick", () => openPlacementDialog(p.id));
+    el.addEventListener("dragstart", e => {
+      el.classList.add("dragging");
+      e.dataTransfer.setData("text/plain", JSON.stringify({ type: "placement", placementId: p.id }));
+      e.dataTransfer.effectAllowed = "move";
+    });
+    el.addEventListener("dragend", () => el.classList.remove("dragging"));
+    return el;
+  }
+
+  function setupDrop(col, day) {
+    col.addEventListener("dragover", e => { e.preventDefault(); col.classList.add("drop-target"); });
+    col.addEventListener("dragleave", () => col.classList.remove("drop-target"));
+    col.addEventListener("drop", e => {
+      e.preventDefault();
+      col.classList.remove("drop-target");
+      let payload;
+      try { payload = JSON.parse(e.dataTransfer.getData("text/plain")); } catch { return; }
+      const rect = col.getBoundingClientRect();
+      const startMin = minFromY(e.clientY - rect.top);
+      const start = minToTime(startMin);
+
+      if (payload.type === "activity") {
+        const a = activityById(payload.activityId);
+        if (!a) return;
+        state.placements.push({ id: uid("p"), activityId: a.id, day, start, duration: a.duration });
+      } else if (payload.type === "placement") {
+        const p = state.placements.find(x => x.id === payload.placementId);
+        if (!p) return;
+        p.day = day;
+        p.start = start;
+      }
+      save(); render();
+    });
+  }
+
+  function drawNowLine() {
+    const jsDay = new Date().getDay();
+    const day = jsDay === 0 ? 6 : jsDay - 1;
+    const now = new Date();
+    const m = now.getHours() * 60 + now.getMinutes();
+    if (m < START_MIN || m > END_MIN) return;
+    const col = board.querySelector(`.day-column[data-day="${day}"]`);
+    if (!col) return;
+    const line = document.createElement("div");
+    line.className = "now-line";
+    line.style.top = yFromMin(m) + "px";
+    col.appendChild(line);
+  }
+
+  function spreadActivity(id) {
+    const a = activityById(id);
+    if (!a || !a.repeatDays?.length) return;
+    a.repeatDays.forEach((day, index) => {
+      const exists = state.placements.some(p => p.activityId === id && p.day === day);
+      if (exists) return;
+      let base = a.preferred ? timeToMin(a.preferred) : 20 * 60;
+      base += ((index % 3) - 1) * 20;
+      state.placements.push({ id: uid("p"), activityId: id, day, start: minToTime(base), duration: a.duration });
+    });
+    save(); render();
+  }
+
+  function openActivityDialog(id = null) {
+    const a = id ? activityById(id) : null;
+    $("#activityDialogTitle").textContent = a ? "编辑 Activity" : "新建 Activity";
+    $("#activityId").value = a?.id || "";
+    $("#activityTitle").value = a?.title || "";
+    $("#activityDuration").value = a?.duration || 30;
+    $("#activityRigidity").value = a?.rigidity || "flexible";
+    $("#activityPreferred").value = a?.preferred || "";
+    document.querySelectorAll("#weekdayChecks input").forEach((box, i) => box.checked = a?.repeatDays?.includes(i) || false);
+    $("#deleteActivityBtn").hidden = !a;
+    $("#activityDialog").showModal();
+  }
+
+  function openContextDialog(id = null) {
+    const c = id ? state.contexts.find(x => x.id === id) : null;
+    $("#contextId").value = c?.id || "";
+    $("#contextTitle").value = c?.title || "";
+    $("#contextDay").value = c?.day ?? 0;
+    $("#contextLocation").value = c?.location || "";
+    $("#contextStart").value = c?.start || "08:50";
+    $("#contextEnd").value = c?.end || "10:25";
+    $("#contextEnergy").value = c?.energy || "中";
+    $("#contextFreedom").value = c?.freedom || "中";
+    $("#deleteContextBtn").hidden = !c;
+    $("#contextDialog").showModal();
+  }
+
+  function openPlacementDialog(id) {
+    const p = state.placements.find(x => x.id === id);
+    if (!p) return;
+    const a = activityById(p.activityId);
+    $("#placementId").value = p.id;
+    $("#placementActivityName").value = a?.title || "";
+    $("#placementDay").value = p.day;
+    $("#placementStart").value = p.start;
+    $("#placementDuration").value = p.duration;
+    $("#placementDialog").showModal();
+  }
+
+  function escapeHtml(s = "") {
+    return String(s).replace(/[&<>'"]/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", "'": "&#39;", '"': "&quot;" }[c]));
+  }
+
+  // Populate shared controls
+  $("#weekdayChecks").innerHTML = DAY_CN.map((d, i) => `<label><input type="checkbox" value="${i}">${d.replace("周", "")}</label>`).join("");
+  [$("#contextDay"), $("#placementDay")].forEach(sel => sel.innerHTML = DAY_CN.map((d, i) => `<option value="${i}">${d}</option>`).join(""));
+
+  $("#addActivityBtn").addEventListener("click", () => openActivityDialog());
+  $("#addContextBtn").addEventListener("click", () => openContextDialog());
+  $("#resetBtn").addEventListener("click", () => {
+    if (!confirm("重置为示例数据？当前本地修改会被清除。")) return;
+    state = seed(); save(); render();
+  });
+
+  document.querySelectorAll("[data-close]").forEach(btn => btn.addEventListener("click", () => document.getElementById(btn.dataset.close).close()));
+
+  $("#activityForm").addEventListener("submit", e => {
+    if (e.submitter?.value !== "save") return;
+    const id = $("#activityId").value;
+    const repeatDays = [...document.querySelectorAll("#weekdayChecks input:checked")].map(x => Number(x.value));
+    const next = {
+      id: id || uid("a"),
+      title: $("#activityTitle").value.trim(),
+      duration: Number($("#activityDuration").value),
+      rigidity: $("#activityRigidity").value,
+      repeatDays,
+      preferred: $("#activityPreferred").value
+    };
+    if (id) Object.assign(activityById(id), next); else state.activities.push(next);
+    save(); setTimeout(render);
+  });
+
+  $("#contextForm").addEventListener("submit", e => {
+    if (e.submitter?.value !== "save") return;
+    const id = $("#contextId").value;
+    const next = {
+      id: id || uid("c"), day: Number($("#contextDay").value), title: $("#contextTitle").value.trim(),
+      start: $("#contextStart").value, end: $("#contextEnd").value, location: $("#contextLocation").value.trim(),
+      energy: $("#contextEnergy").value, freedom: $("#contextFreedom").value
+    };
+    if (timeToMin(next.end) <= timeToMin(next.start)) { e.preventDefault(); alert("结束时间需要晚于开始时间。"); return; }
+    if (id) Object.assign(state.contexts.find(x => x.id === id), next); else state.contexts.push(next);
+    save(); setTimeout(render);
+  });
+
+  $("#placementForm").addEventListener("submit", e => {
+    if (e.submitter?.value !== "save") return;
+    const p = state.placements.find(x => x.id === $("#placementId").value);
+    if (!p) return;
+    p.day = Number($("#placementDay").value);
+    p.start = $("#placementStart").value;
+    p.duration = Number($("#placementDuration").value);
+    save(); setTimeout(render);
+  });
+
+  $("#deleteActivityBtn").addEventListener("click", () => {
+    const id = $("#activityId").value;
+    if (!id || !confirm("删除这个 Activity，并删除它的所有 Placement？")) return;
+    state.activities = state.activities.filter(a => a.id !== id);
+    state.placements = state.placements.filter(p => p.activityId !== id);
+    save(); $("#activityDialog").close(); render();
+  });
+  $("#deleteContextBtn").addEventListener("click", () => {
+    const id = $("#contextId").value;
+    if (!id) return;
+    state.contexts = state.contexts.filter(c => c.id !== id);
+    save(); $("#contextDialog").close(); render();
+  });
+  $("#deletePlacementBtn").addEventListener("click", () => {
+    const id = $("#placementId").value;
+    state.placements = state.placements.filter(p => p.id !== id);
+    save(); $("#placementDialog").close(); render();
+  });
+
+  render();
+})();
+</script>
+</body>
+</html>
