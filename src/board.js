@@ -1,4 +1,4 @@
-import { store, DAYS, DAY_LABELS, minutes, clock, durationLabel } from './state.js';
+import { store, DAYS, DAY_LABELS, MAX_DEPTH, clock, durationLabel } from './state.js';
 
 const START = 7 * 60;
 const END = 24 * 60;
@@ -7,72 +7,70 @@ const SNAP = 15;
 
 const clamp = (n, min, max) => Math.max(min, Math.min(max, n));
 const pct = mins => ((mins - START) / RANGE) * 100;
-const fromPct = p => START + (p / 100) * RANGE;
 const snap15 = mins => Math.round(mins / SNAP) * SNAP;
 
 function activityById(id) {
-  return store.get().activities.find(a => a.id === id);
+  return store.activityById(id);
 }
 
-function collectAnchors(day, ignorePlacementId = null) {
-  const s = store.get();
-  const anchors = [8 * 60, 12 * 60, 16 * 60, 20 * 60, 22 * 60];
-  s.contexts.filter(c => c.day === day).forEach(c => anchors.push(c.start, c.end));
-  s.placements.filter(p => p.day === day && p.id !== ignorePlacementId).forEach(p => anchors.push(p.start, p.start + p.duration));
-  return anchors;
+function relativeGeometry(p, parent) {
+  if (!parent) {
+    return {
+      top: pct(p.start),
+      height: Math.max(3.6, (p.duration / RANGE) * 100),
+    };
+  }
+  return {
+    top: clamp(((p.start - parent.start) / parent.duration) * 100, 0, 100),
+    height: clamp((p.duration / parent.duration) * 100, 8, 100),
+  };
 }
 
-function smartSnap(raw, day, ignorePlacementId = null) {
-  const snapped = snap15(raw);
-  const anchors = collectAnchors(day, ignorePlacementId);
-  let best = snapped;
-  let dist = 13;
-  anchors.forEach(a => {
-    const d = Math.abs(raw - a);
-    if (d < dist) { best = a; dist = d; }
-  });
-  return clamp(best, START, END - 15);
+function traitText(activity) {
+  const t = activity?.traits || {};
+  return [t.location, t.energy && `精力 ${t.energy}`, t.freedom && `自由 ${t.freedom}`].filter(Boolean).join(' · ');
 }
 
-function makeStuds(count = 4) {
-  return `<span class="stud-row" aria-hidden="true">${Array.from({ length: count }, () => '<i></i>').join('')}</span>`;
-}
-
-function placementHTML(p) {
+function placementHTML(p, parent = null, depth = 0) {
   const a = activityById(p.activityId);
   if (!a) return '';
+  const children = store.childrenOf(p.id).sort((x, y) => x.start - y.start);
   const selected = store.get().selected?.type === 'placement' && store.get().selected.id === p.id;
-  return `<button class="lego-block placement ${selected ? 'is-selected' : ''}" data-placement="${p.id}" style="--top:${pct(p.start)}%;--height:${Math.max(4.2, (p.duration / RANGE) * 100)}%" aria-label="${a.title} ${clock(p.start)} ${durationLabel(p.duration)}">
-    ${makeStuds(p.duration >= 60 ? 5 : 3)}
-    <span class="block-title">${a.title}</span>
-    <span class="block-meta">${clock(p.start)} · ${durationLabel(p.duration)}</span>
-    <span class="resize-handle" data-resize="${p.id}" aria-hidden="true"></span>
-  </button>`;
-}
+  const g = relativeGeometry(p, parent);
+  const childHTML = children.map(child => placementHTML(child, p, depth + 1)).join('');
+  const classNames = [
+    'placement-node',
+    children.length ? 'has-children' : 'is-leaf',
+    selected ? 'is-selected' : '',
+    depth ? 'is-nested' : '',
+  ].filter(Boolean).join(' ');
 
-function contextHTML(c) {
-  const selected = store.get().selected?.type === 'context' && store.get().selected.id === c.id;
-  const span = Math.max(5, pct(c.end) - pct(c.start));
-  return `<button class="context-pad ${selected ? 'is-selected' : ''}" data-context="${c.id}" style="--top:${pct(c.start)}%;--height:${span}%">
-    <span class="context-kicker">CONTEXT</span>
-    <strong>${c.title}</strong>
-    <span>${clock(c.start)}–${clock(c.end)}${c.location ? ` · ${c.location}` : ''}</span>
-    <small>${[c.energy && `精力 ${c.energy}`, c.freedom && `自由 ${c.freedom}`].filter(Boolean).join(' · ')}</small>
-  </button>`;
+  return `<div class="${classNames}" data-placement="${p.id}" data-depth="${depth}" style="--top:${g.top}%;--height:${g.height}%">
+    <button class="placement-surface" type="button" data-drag-handle="${p.id}" aria-label="${a.title} ${clock(p.start)} ${durationLabel(p.duration)}">
+      <span class="stud-row" aria-hidden="true"><i></i><i></i><i></i><i></i></span>
+      <span class="block-copy">
+        <strong>${escapeHtml(a.title)}</strong>
+        <small>${clock(p.start)} · ${durationLabel(p.duration)}</small>
+        ${traitText(a) ? `<em>${escapeHtml(traitText(a))}</em>` : ''}
+      </span>
+      ${children.length ? `<span class="container-badge">${children.length} 内嵌</span>` : ''}
+      <span class="resize-handle" data-resize="${p.id}" aria-label="调整时长"></span>
+    </button>
+    ${childHTML}
+  </div>`;
 }
 
 function dayColumn(day) {
-  const s = store.get();
+  const roots = store.get().placements.filter(p => p.day === day && !p.parentId).sort((a, b) => a.start - b.start);
   return `<section class="day-column" data-day="${day}">
     <header class="day-title"><strong>${DAY_LABELS[day]}</strong><span>${DAYS[day]}</span></header>
     <div class="day-canvas" data-day-canvas="${day}">
       <span class="period p-morning">上午</span>
       <span class="period p-afternoon">下午</span>
       <span class="period p-evening">晚上</span>
-      <div class="quiet-line" style="--top:${pct(12*60)}%"></div>
-      <div class="quiet-line" style="--top:${pct(18*60)}%"></div>
-      ${s.contexts.filter(c => c.day === day).map(contextHTML).join('')}
-      ${s.placements.filter(p => p.day === day).map(placementHTML).join('')}
+      <div class="quiet-line" style="--top:${pct(12 * 60)}%"></div>
+      <div class="quiet-line" style="--top:${pct(18 * 60)}%"></div>
+      ${roots.map(p => placementHTML(p)).join('')}
       <div class="snap-guide" hidden></div>
       <output class="drag-time" hidden></output>
     </div>
@@ -84,66 +82,137 @@ export function renderBoard(root) {
   wireBoard(root);
 }
 
+function escapeHtml(value = '') {
+  return String(value).replace(/[&<>'"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', "'": '&#39;', '"': '&quot;' }[c]));
+}
+
 function pointerMinute(canvas, clientY) {
   const r = canvas.getBoundingClientRect();
   const y = clamp(clientY - r.top, 0, r.height);
   return START + (y / r.height) * RANGE;
 }
 
-function dayFromPoint(clientX, clientY) {
-  const el = document.elementFromPoint(clientX, clientY)?.closest('[data-day-canvas]');
-  return el ? Number(el.dataset.dayCanvas) : null;
+function dayCanvasAt(clientX, clientY) {
+  const el = document.elementsFromPoint(clientX, clientY).map(x => x.closest?.('[data-day-canvas]')).find(Boolean);
+  return el || null;
 }
 
-function showGuide(root, day, minute, text) {
-  root.querySelectorAll('.snap-guide,.drag-time').forEach(el => el.hidden = true);
-  const canvas = root.querySelector(`[data-day-canvas="${day}"]`);
-  if (!canvas) return;
-  const guide = canvas.querySelector('.snap-guide');
-  const bubble = canvas.querySelector('.drag-time');
-  guide.style.setProperty('--top', `${pct(minute)}%`);
-  guide.hidden = false;
-  bubble.style.setProperty('--top', `${pct(minute)}%`);
-  bubble.textContent = text;
-  bubble.hidden = false;
-  canvas.classList.add('is-target');
+function candidateParentAt(clientX, clientY, movingId = null) {
+  const nodes = document.elementsFromPoint(clientX, clientY)
+    .map(x => x.closest?.('[data-placement]'))
+    .filter(Boolean);
+  for (const node of nodes) {
+    const id = node.dataset.placement;
+    if (!id || id === movingId) continue;
+    if (movingId && !store.canParent(movingId, id)) continue;
+    if (!movingId && store.depthOf(id) + 1 >= MAX_DEPTH) continue;
+    return store.placementById(id);
+  }
+  return null;
+}
+
+function collectAnchors(day, ignorePlacementId = null, parentId = null) {
+  const s = store.get();
+  const anchors = parentId ? [] : [8 * 60, 12 * 60, 16 * 60, 20 * 60, 22 * 60];
+  const parent = parentId ? store.placementById(parentId) : null;
+  if (parent) anchors.push(parent.start, parent.start + parent.duration);
+  s.placements
+    .filter(p => p.day === day && p.id !== ignorePlacementId && (p.parentId || null) === (parentId || null))
+    .forEach(p => anchors.push(p.start, p.start + p.duration));
+  return anchors;
+}
+
+function smartSnap(raw, day, ignorePlacementId = null, parentId = null) {
+  const snapped = snap15(raw);
+  let best = snapped;
+  let dist = 13;
+  collectAnchors(day, ignorePlacementId, parentId).forEach(a => {
+    const d = Math.abs(raw - a);
+    if (d < dist) { best = a; dist = d; }
+  });
+  return clamp(best, START, END - 15);
+}
+
+function constrainToParent(start, duration, parent) {
+  if (!parent) return start;
+  return clamp(start, parent.start, Math.max(parent.start, parent.start + parent.duration - duration));
 }
 
 function clearGuides(root) {
   root.querySelectorAll('.snap-guide,.drag-time').forEach(el => el.hidden = true);
   root.querySelectorAll('.day-canvas').forEach(el => el.classList.remove('is-target'));
+  root.querySelectorAll('.placement-node').forEach(el => el.classList.remove('nest-candidate'));
+}
+
+function showGuide(root, day, minute, text, parentId = null) {
+  clearGuides(root);
+  const canvas = root.querySelector(`[data-day-canvas="${day}"]`);
+  if (!canvas) return;
+  canvas.classList.add('is-target');
+  const guide = canvas.querySelector(':scope > .snap-guide');
+  const bubble = canvas.querySelector(':scope > .drag-time');
+  guide.style.setProperty('--top', `${pct(minute)}%`);
+  guide.hidden = false;
+  bubble.style.setProperty('--top', `${pct(minute)}%`);
+  bubble.textContent = text;
+  bubble.hidden = false;
+  if (parentId) root.querySelector(`[data-placement="${parentId}"]`)?.classList.add('nest-candidate');
+}
+
+function previewPosition(root, clientX, clientY, duration, movingId = null) {
+  const canvas = dayCanvasAt(clientX, clientY);
+  if (!canvas) return null;
+  const day = Number(canvas.dataset.dayCanvas);
+  const parent = candidateParentAt(clientX, clientY, movingId);
+  const parentId = parent?.id || null;
+  const raw = pointerMinute(canvas, clientY);
+  let start = smartSnap(raw, day, movingId, parentId);
+  start = constrainToParent(start, duration, parent);
+  const text = parent
+    ? `放入 ${activityById(parent.activityId)?.title || '容器'} · ${clock(start)}`
+    : `${clock(start)} · ${durationLabel(duration)}`;
+  showGuide(root, parent ? parent.day : day, start, text, parentId);
+  return { day: parent ? parent.day : day, start, parentId };
 }
 
 function wireBoard(root) {
-  root.querySelectorAll('[data-context]').forEach(el => el.addEventListener('click', e => {
-    e.stopPropagation(); store.select('context', el.dataset.context);
-  }));
-
-  root.querySelectorAll('[data-placement]').forEach(el => {
-    el.addEventListener('click', e => {
+  root.querySelectorAll('[data-drag-handle]').forEach(handle => {
+    const id = handle.dataset.dragHandle;
+    handle.addEventListener('click', e => { e.stopPropagation(); store.select('placement', id); });
+    handle.addEventListener('pointerdown', e => {
       if (e.target.closest('[data-resize]')) return;
-      e.stopPropagation(); store.select('placement', el.dataset.placement);
-    });
-    el.addEventListener('pointerdown', e => {
-      if (e.target.closest('[data-resize]')) return;
-      beginMove(e, root, el.dataset.placement);
+      beginMove(e, root, id);
     });
   });
 
-  root.querySelectorAll('[data-resize]').forEach(handle => handle.addEventListener('pointerdown', e => beginResize(e, root, handle.dataset.resize)));
+  root.querySelectorAll('[data-resize]').forEach(handle => {
+    handle.addEventListener('pointerdown', e => beginResize(e, root, handle.dataset.resize));
+  });
 
   root.querySelectorAll('[data-day-canvas]').forEach(canvas => {
-    canvas.addEventListener('click', () => store.select(null, null));
-    canvas.addEventListener('dragover', e => { e.preventDefault(); e.dataTransfer.dropEffect = 'copy'; const m = smartSnap(pointerMinute(canvas, e.clientY), Number(canvas.dataset.dayCanvas)); showGuide(root, Number(canvas.dataset.dayCanvas), m, `放到 ${clock(m)}`); });
-    canvas.addEventListener('dragleave', e => { if (!canvas.contains(e.relatedTarget)) clearGuides(root); });
+    canvas.addEventListener('click', e => {
+      if (!e.target.closest('[data-placement]')) store.select(null, null);
+    });
+    canvas.addEventListener('dragover', e => {
+      e.preventDefault();
+      const activityId = e.dataTransfer.getData('text/activity-id');
+      const a = activityById(activityId);
+      if (!a) return;
+      previewPosition(root, e.clientX, e.clientY, a.duration);
+      e.dataTransfer.dropEffect = 'copy';
+    });
+    canvas.addEventListener('dragleave', e => {
+      if (!canvas.contains(e.relatedTarget)) clearGuides(root);
+    });
     canvas.addEventListener('drop', e => {
       e.preventDefault();
       const activityId = e.dataTransfer.getData('text/activity-id');
-      if (!activityId) return;
-      const day = Number(canvas.dataset.dayCanvas);
-      const m = smartSnap(pointerMinute(canvas, e.clientY), day);
-      const p = store.addPlacement(activityId, day, m);
-      store.select('placement', p.id);
+      const a = activityById(activityId);
+      if (!a) return;
+      const preview = previewPosition(root, e.clientX, e.clientY, a.duration);
+      if (!preview) return;
+      const p = store.addPlacement(activityId, preview.day, preview.start, a.duration, preview.parentId);
+      if (p) store.select('placement', p.id);
       clearGuides(root);
     });
   });
@@ -151,71 +220,81 @@ function wireBoard(root) {
 
 function beginMove(e, root, id) {
   if (e.button !== 0) return;
-  const p = store.get().placements.find(x => x.id === id);
+  const p = store.placementById(id);
   if (!p) return;
   e.preventDefault();
-  const target = e.currentTarget;
-  target.setPointerCapture(e.pointerId);
-  target.classList.add('is-dragging');
+  e.stopPropagation();
+  const node = e.currentTarget.closest('[data-placement]');
+  const sourceCanvas = node.closest('[data-day-canvas]');
+  const pointerAtStart = pointerMinute(sourceCanvas, e.clientY);
+  const offset = pointerAtStart - p.start;
+  let preview = { day: p.day, start: p.start, parentId: p.parentId || null };
+
+  e.currentTarget.setPointerCapture(e.pointerId);
+  node.classList.add('is-dragging');
   document.body.classList.add('dragging-block');
 
-  const sourceCanvas = target.closest('[data-day-canvas]');
-  const startMinuteAtPointer = pointerMinute(sourceCanvas, e.clientY);
-  const offset = startMinuteAtPointer - p.start;
-  let preview = { day: p.day, start: p.start };
-
   const move = ev => {
-    const day = dayFromPoint(ev.clientX, ev.clientY);
-    if (day == null) return;
-    const canvas = root.querySelector(`[data-day-canvas="${day}"]`);
+    const canvas = dayCanvasAt(ev.clientX, ev.clientY);
+    if (!canvas) return;
+    const parent = candidateParentAt(ev.clientX, ev.clientY, id);
+    const day = parent ? parent.day : Number(canvas.dataset.dayCanvas);
     const raw = pointerMinute(canvas, ev.clientY) - offset;
-    const start = smartSnap(raw, day, id);
-    preview = { day, start };
-    showGuide(root, day, start, `${clock(start)} · ${durationLabel(p.duration)}`);
+    const parentId = parent?.id || null;
+    let start = smartSnap(raw, day, id, parentId);
+    start = constrainToParent(start, p.duration, parent);
+    preview = { day, start, parentId };
+    const label = parent
+      ? `放入 ${activityById(parent.activityId)?.title || '容器'} · ${clock(start)}`
+      : `${clock(start)} · ${durationLabel(p.duration)}`;
+    showGuide(root, day, start, label, parentId);
   };
 
-  const up = ev => {
-    target.releasePointerCapture?.(e.pointerId);
-    target.classList.remove('is-dragging');
+  const up = () => {
+    e.currentTarget.releasePointerCapture?.(e.pointerId);
+    node.classList.remove('is-dragging');
     document.body.classList.remove('dragging-block');
-    target.removeEventListener('pointermove', move);
-    target.removeEventListener('pointerup', up);
-    target.removeEventListener('pointercancel', up);
+    e.currentTarget.removeEventListener('pointermove', move);
+    e.currentTarget.removeEventListener('pointerup', up);
+    e.currentTarget.removeEventListener('pointercancel', up);
     clearGuides(root);
-    store.updatePlacement(id, preview);
+    store.movePlacement(id, preview);
     store.select('placement', id);
   };
 
-  target.addEventListener('pointermove', move);
-  target.addEventListener('pointerup', up);
-  target.addEventListener('pointercancel', up);
+  e.currentTarget.addEventListener('pointermove', move);
+  e.currentTarget.addEventListener('pointerup', up);
+  e.currentTarget.addEventListener('pointercancel', up);
 }
 
 function beginResize(e, root, id) {
   if (e.button !== 0) return;
-  e.preventDefault(); e.stopPropagation();
-  const p = store.get().placements.find(x => x.id === id);
+  e.preventDefault();
+  e.stopPropagation();
+  const p = store.placementById(id);
   if (!p) return;
-  const handle = e.currentTarget;
-  handle.setPointerCapture(e.pointerId);
-  const canvas = handle.closest('[data-day-canvas]');
+  const canvas = e.currentTarget.closest('[data-day-canvas]');
+  const parent = p.parentId ? store.placementById(p.parentId) : null;
+  const maxEnd = parent ? parent.start + parent.duration : END;
   let duration = p.duration;
 
+  e.currentTarget.setPointerCapture(e.pointerId);
   const move = ev => {
-    const end = snap15(pointerMinute(canvas, ev.clientY));
-    duration = clamp(end - p.start, 15, END - p.start);
-    showGuide(root, p.day, p.start + duration, `${durationLabel(duration)}`);
+    const end = clamp(snap15(pointerMinute(canvas, ev.clientY)), p.start + 15, maxEnd);
+    duration = end - p.start;
+    showGuide(root, p.day, p.start + duration, durationLabel(duration), p.parentId);
   };
   const up = () => {
-    handle.releasePointerCapture?.(e.pointerId);
-    handle.removeEventListener('pointermove', move);
-    handle.removeEventListener('pointerup', up);
-    handle.removeEventListener('pointercancel', up);
+    e.currentTarget.releasePointerCapture?.(e.pointerId);
+    e.currentTarget.removeEventListener('pointermove', move);
+    e.currentTarget.removeEventListener('pointerup', up);
+    e.currentTarget.removeEventListener('pointercancel', up);
     clearGuides(root);
     store.updatePlacement(id, { duration });
     store.select('placement', id);
   };
-  handle.addEventListener('pointermove', move);
-  handle.addEventListener('pointerup', up);
-  handle.addEventListener('pointercancel', up);
+
+  e.currentTarget.addEventListener('pointermove', move);
+  e.currentTarget.addEventListener('pointerup', up);
+  e.currentTarget.addEventListener('pointercancel', up);
 }
