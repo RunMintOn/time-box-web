@@ -98,15 +98,19 @@ function dayCanvasAt(clientX, clientY) {
 }
 
 function candidateParentAt(clientX, clientY, movingId = null) {
+  const moving = movingId ? store.placementById(movingId) : null;
   const nodes = document.elementsFromPoint(clientX, clientY)
     .map(x => x.closest?.('[data-placement]'))
     .filter(Boolean);
   for (const node of nodes) {
     const id = node.dataset.placement;
     if (!id || id === movingId) continue;
+    const parent = store.placementById(id);
+    if (!parent) continue;
     if (movingId && !store.canParent(movingId, id)) continue;
+    if (moving && moving.duration > parent.duration) continue;
     if (!movingId && store.depthOf(id) + 1 >= MAX_DEPTH) continue;
-    return store.placementById(id);
+    return parent;
   }
   return null;
 }
@@ -195,7 +199,7 @@ function wireBoard(root) {
     });
     canvas.addEventListener('dragover', e => {
       e.preventDefault();
-      const activityId = e.dataTransfer.getData('text/activity-id');
+      const activityId = document.body.dataset.dragActivity || e.dataTransfer.getData('text/activity-id');
       const a = activityById(activityId);
       if (!a) return;
       previewPosition(root, e.clientX, e.clientY, a.duration);
@@ -206,7 +210,7 @@ function wireBoard(root) {
     });
     canvas.addEventListener('drop', e => {
       e.preventDefault();
-      const activityId = e.dataTransfer.getData('text/activity-id');
+      const activityId = e.dataTransfer.getData('text/activity-id') || document.body.dataset.dragActivity;
       const a = activityById(activityId);
       if (!a) return;
       const preview = previewPosition(root, e.clientX, e.clientY, a.duration);
