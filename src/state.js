@@ -1,9 +1,10 @@
-const STORAGE_KEY = 'time-box-web-v2';
+const STORAGE_KEY = 'time-box-web-v3';
 
-const uid = (prefix) => `${prefix}_${Math.random().toString(36).slice(2, 8)}_${Date.now().toString(36)}`;
+const uid = prefix => `${prefix}_${Math.random().toString(36).slice(2, 8)}_${Date.now().toString(36)}`;
 
 export const DAYS = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
 export const DAY_LABELS = ['周一', '周二', '周三', '周四', '周五', '周六', '周日'];
+export const MAX_DEPTH = 3;
 
 export function minutes(value) {
   if (typeof value === 'number') return value;
@@ -23,34 +24,36 @@ export function durationLabel(mins) {
   return m ? `${h}h ${m}m` : `${h}h`;
 }
 
+function activity(id, title, duration, repeatDays = [], rigidity = 'flexible', traits = {}) {
+  return { id, title, duration, repeatDays, rigidity, traits: { location: '', energy: '', freedom: '', ...traits }, note: '' };
+}
+
 function seed() {
   const activities = [
-    { id: 'a_read', title: '阅读', duration: 30, repeatDays: [0,1,2,3,4], rigidity: 'approx', note: '' },
-    { id: 'a_train', title: '锻炼', duration: 60, repeatDays: [0,1,2,3,4], rigidity: 'approx', note: '' },
-    { id: 'a_own', title: '自己的事情', duration: 70, repeatDays: [], rigidity: 'flexible', note: '' },
-  ];
-
-  const contexts = [
-    { id: 'c_mon_1', day: 0, start: 530, end: 625, title: '大数据营销', location: '教室', energy: '中', freedom: '高' },
-    { id: 'c_mon_2', day: 0, start: 640, end: 735, title: '云计算', location: '教室', energy: '中', freedom: '高' },
-    { id: 'c_wed_1', day: 2, start: 530, end: 625, title: '课程', location: '教室', energy: '中', freedom: '高' },
+    activity('a_course_data', '大数据营销', 95, [0], 'fixed', { location: '教室', energy: '中', freedom: '高' }),
+    activity('a_course_cloud', '云计算', 95, [0], 'fixed', { location: '教室', energy: '中', freedom: '高' }),
+    activity('a_read', '阅读', 30, [0, 1, 2, 3, 4], 'approx', { energy: '低' }),
+    activity('a_train', '锻炼', 60, [0, 1, 2, 3, 4], 'approx', { energy: '中' }),
+    activity('a_own', '自己的事情', 70, [], 'flexible', { energy: '中' }),
   ];
 
   const placements = [
-    { id: 'p_own', activityId: 'a_own', day: 0, start: 545, duration: 70 },
-    { id: 'p_train_0', activityId: 'a_train', day: 0, start: 970, duration: 60 },
-    { id: 'p_train_1', activityId: 'a_train', day: 1, start: 1000, duration: 60 },
-    { id: 'p_train_2', activityId: 'a_train', day: 2, start: 950, duration: 60 },
-    { id: 'p_train_3', activityId: 'a_train', day: 3, start: 980, duration: 60 },
-    { id: 'p_train_4', activityId: 'a_train', day: 4, start: 1020, duration: 60 },
-    { id: 'p_read_0', activityId: 'a_read', day: 0, start: 1260, duration: 30 },
-    { id: 'p_read_1', activityId: 'a_read', day: 1, start: 1230, duration: 30 },
-    { id: 'p_read_2', activityId: 'a_read', day: 2, start: 1320, duration: 30 },
-    { id: 'p_read_3', activityId: 'a_read', day: 3, start: 1170, duration: 30 },
-    { id: 'p_read_4', activityId: 'a_read', day: 4, start: 1290, duration: 30 },
+    { id: 'p_course_data', activityId: 'a_course_data', day: 0, start: 530, duration: 95, parentId: null },
+    { id: 'p_own', activityId: 'a_own', day: 0, start: 545, duration: 70, parentId: 'p_course_data' },
+    { id: 'p_course_cloud', activityId: 'a_course_cloud', day: 0, start: 640, duration: 95, parentId: null },
+    { id: 'p_train_0', activityId: 'a_train', day: 0, start: 970, duration: 60, parentId: null },
+    { id: 'p_train_1', activityId: 'a_train', day: 1, start: 1000, duration: 60, parentId: null },
+    { id: 'p_train_2', activityId: 'a_train', day: 2, start: 950, duration: 60, parentId: null },
+    { id: 'p_train_3', activityId: 'a_train', day: 3, start: 980, duration: 60, parentId: null },
+    { id: 'p_train_4', activityId: 'a_train', day: 4, start: 1020, duration: 60, parentId: null },
+    { id: 'p_read_0', activityId: 'a_read', day: 0, start: 1260, duration: 30, parentId: null },
+    { id: 'p_read_1', activityId: 'a_read', day: 1, start: 1230, duration: 30, parentId: null },
+    { id: 'p_read_2', activityId: 'a_read', day: 2, start: 1320, duration: 30, parentId: null },
+    { id: 'p_read_3', activityId: 'a_read', day: 3, start: 1170, duration: 30, parentId: null },
+    { id: 'p_read_4', activityId: 'a_read', day: 4, start: 1290, duration: 30, parentId: null },
   ];
 
-  return { activities, contexts, placements, selected: null };
+  return { activities, placements, selected: null };
 }
 
 let state;
@@ -67,43 +70,169 @@ function persist() {
   listeners.forEach(fn => fn(state));
 }
 
+function placementById(id) {
+  return state.placements.find(p => p.id === id) || null;
+}
+
+function childrenOf(id) {
+  return state.placements.filter(p => p.parentId === id);
+}
+
+function descendantsOf(id) {
+  const out = [];
+  const walk = parentId => childrenOf(parentId).forEach(child => { out.push(child); walk(child.id); });
+  walk(id);
+  return out;
+}
+
+function depthOf(id) {
+  let depth = 0;
+  let current = placementById(id);
+  const seen = new Set();
+  while (current?.parentId && !seen.has(current.parentId)) {
+    seen.add(current.parentId);
+    depth += 1;
+    current = placementById(current.parentId);
+  }
+  return depth;
+}
+
+function canParent(childId, parentId) {
+  if (!parentId) return true;
+  if (childId === parentId) return false;
+  if (descendantsOf(childId).some(p => p.id === parentId)) return false;
+  return depthOf(parentId) + 1 < MAX_DEPTH;
+}
+
+function moveDescendants(id, day, delta) {
+  descendantsOf(id).forEach(child => {
+    child.day = day;
+    child.start += delta;
+  });
+}
+
 export const store = {
   get: () => state,
   subscribe(fn) { listeners.add(fn); return () => listeners.delete(fn); },
   reset() { state = seed(); persist(); },
   select(type, id) { state.selected = id ? { type, id } : null; persist(); },
+  activityById(id) { return state.activities.find(a => a.id === id) || null; },
+  placementById,
+  childrenOf,
+  descendantsOf,
+  depthOf,
+  canParent,
+
   addActivity(data) {
-    const item = { id: uid('a'), title: data.title || '未命名', duration: Number(data.duration) || 30, repeatDays: data.repeatDays || [], rigidity: data.rigidity || 'flexible', note: data.note || '' };
-    state.activities.push(item); persist(); return item;
+    const item = {
+      id: uid('a'),
+      title: data.title || '未命名',
+      duration: Number(data.duration) || 30,
+      repeatDays: data.repeatDays || [],
+      rigidity: data.rigidity || 'flexible',
+      traits: {
+        location: data.location || '',
+        energy: data.energy || '',
+        freedom: data.freedom || '',
+      },
+      note: data.note || '',
+    };
+    state.activities.push(item);
+    persist();
+    return item;
   },
-  updateActivity(id, patch) { Object.assign(state.activities.find(x => x.id === id) || {}, patch); persist(); },
-  removeActivity(id) {
-    state.activities = state.activities.filter(x => x.id !== id);
-    state.placements = state.placements.filter(x => x.activityId !== id);
-    if (state.selected?.id === id) state.selected = null;
+
+  updateActivity(id, patch) {
+    const item = state.activities.find(x => x.id === id);
+    if (!item) return;
+    if (patch.traits) item.traits = { ...item.traits, ...patch.traits };
+    Object.assign(item, { ...patch, traits: item.traits });
     persist();
   },
-  addContext(data) {
-    const item = { id: uid('c'), day: Number(data.day) || 0, start: Number(data.start), end: Number(data.end), title: data.title || 'Context', location: data.location || '', energy: data.energy || '', freedom: data.freedom || '' };
-    state.contexts.push(item); persist(); return item;
+
+  removeActivity(id) {
+    const placementIds = state.placements.filter(x => x.activityId === id).map(x => x.id);
+    const remove = new Set(placementIds);
+    placementIds.forEach(pid => descendantsOf(pid).forEach(p => remove.add(p.id)));
+    state.activities = state.activities.filter(x => x.id !== id);
+    state.placements = state.placements.filter(x => !remove.has(x.id));
+    if (state.selected?.id === id || remove.has(state.selected?.id)) state.selected = null;
+    persist();
   },
-  updateContext(id, patch) { Object.assign(state.contexts.find(x => x.id === id) || {}, patch); persist(); },
-  removeContext(id) { state.contexts = state.contexts.filter(x => x.id !== id); if (state.selected?.id === id) state.selected = null; persist(); },
-  addPlacement(activityId, day, start, duration) {
+
+  addPlacement(activityId, day, start, duration, parentId = null) {
     const activity = state.activities.find(x => x.id === activityId);
     if (!activity) return null;
-    const item = { id: uid('p'), activityId, day, start, duration: duration || activity.duration };
-    state.placements.push(item); persist(); return item;
+    const parent = parentId ? placementById(parentId) : null;
+    const item = {
+      id: uid('p'),
+      activityId,
+      day: parent ? parent.day : Number(day),
+      start: Number(start),
+      duration: Number(duration) || activity.duration,
+      parentId: parent?.id || null,
+    };
+    if (parent) {
+      item.start = Math.max(parent.start, Math.min(item.start, parent.start + parent.duration - item.duration));
+      if (item.duration > parent.duration) item.duration = parent.duration;
+    }
+    state.placements.push(item);
+    persist();
+    return item;
   },
-  updatePlacement(id, patch) { Object.assign(state.placements.find(x => x.id === id) || {}, patch); persist(); },
-  removePlacement(id) { state.placements = state.placements.filter(x => x.id !== id); if (state.selected?.id === id) state.selected = null; persist(); },
+
+  updatePlacement(id, patch) {
+    const item = placementById(id);
+    if (!item) return;
+    const oldStart = item.start;
+    const oldDay = item.day;
+    Object.assign(item, patch);
+    if (item.parentId) {
+      const parent = placementById(item.parentId);
+      if (parent) {
+        item.day = parent.day;
+        item.duration = Math.min(item.duration, parent.duration);
+        item.start = Math.max(parent.start, Math.min(item.start, parent.start + parent.duration - item.duration));
+      }
+    }
+    const delta = item.start - oldStart;
+    if (delta || item.day !== oldDay) moveDescendants(id, item.day, delta);
+    persist();
+  },
+
+  movePlacement(id, { day, start, parentId = null }) {
+    const item = placementById(id);
+    if (!item || !canParent(id, parentId)) return;
+    const oldStart = item.start;
+    item.parentId = parentId || null;
+    if (parentId) {
+      const parent = placementById(parentId);
+      if (!parent) return;
+      item.day = parent.day;
+      item.duration = Math.min(item.duration, parent.duration);
+      item.start = Math.max(parent.start, Math.min(Number(start), parent.start + parent.duration - item.duration));
+    } else {
+      item.day = Number(day);
+      item.start = Number(start);
+    }
+    moveDescendants(id, item.day, item.start - oldStart);
+    persist();
+  },
+
+  removePlacement(id) {
+    const remove = new Set([id, ...descendantsOf(id).map(p => p.id)]);
+    state.placements = state.placements.filter(x => !remove.has(x.id));
+    if (remove.has(state.selected?.id)) state.selected = null;
+    persist();
+  },
+
   spreadActivity(id) {
     const a = state.activities.find(x => x.id === id);
     if (!a) return;
     a.repeatDays.forEach((day, i) => {
-      const exists = state.placements.some(p => p.activityId === id && p.day === day);
-      if (!exists) state.placements.push({ id: uid('p'), activityId: id, day, start: 20 * 60 + (i % 2) * 30, duration: a.duration });
+      const exists = state.placements.some(p => p.activityId === id && p.day === day && !p.parentId);
+      if (!exists) state.placements.push({ id: uid('p'), activityId: id, day, start: 20 * 60 + (i % 2) * 30, duration: a.duration, parentId: null });
     });
     persist();
-  }
+  },
 };
