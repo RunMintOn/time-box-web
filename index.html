@@ -4,16 +4,15 @@
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <meta name="color-scheme" content="dark" />
-  <title>Time Box · Weekly Lego Board</title>
+  <title>Time Box · Nested Activity Board</title>
   <link rel="stylesheet" href="./styles.css" />
 </head>
 <body>
   <div class="app-shell">
     <header class="topbar">
-      <div class="brand"><strong>Time Box</strong><span>Weekly Lego Board · V2</span></div>
+      <div class="brand"><strong>Time Box</strong><span>Nested Activity Board · V3</span></div>
       <div class="top-actions">
         <button class="button" id="resetDemo">重置示例</button>
-        <button class="button" id="addContext">＋ Context</button>
         <button class="button primary" id="addActivity">＋ Activity</button>
       </div>
     </header>
@@ -29,10 +28,14 @@
     <form class="dialog-body" id="activityForm">
       <span class="eyebrow">NEW ACTIVITY</span>
       <h3>做一块新积木</h3>
+      <p class="dialog-copy">Activity 既可以独立存在，也可以成为别的 Activity 的容器。</p>
       <div class="dialog-grid">
-        <label class="field full"><span>名称</span><input name="title" required placeholder="例如：阅读" /></label>
+        <label class="field full"><span>名称</span><input name="title" required placeholder="例如：阅读 / 课程 / 锻炼" /></label>
         <label class="field"><span>默认时长（分钟）</span><input name="duration" type="number" min="15" step="15" value="30" required /></label>
         <label class="field"><span>时间刚性</span><select name="rigidity"><option value="flexible">Flexible</option><option value="approx" selected>Approx</option><option value="fixed">Fixed</option></select></label>
+        <label class="field full"><span>地点（可选）</span><input name="location" placeholder="教室 / 宿舍 / 图书馆" /></label>
+        <label class="field"><span>精力</span><select name="energy"><option value="">—</option><option>低</option><option>中</option><option>高</option></select></label>
+        <label class="field"><span>自由度</span><select name="freedom"><option value="">—</option><option>低</option><option>中</option><option>高</option></select></label>
         <div class="field full"><span>重复日（可选）</span><div class="repeat-row">
           <label><input type="checkbox" name="repeatDay" value="0" />一</label>
           <label><input type="checkbox" name="repeatDay" value="1" />二</label>
@@ -42,23 +45,6 @@
           <label><input type="checkbox" name="repeatDay" value="5" />六</label>
           <label><input type="checkbox" name="repeatDay" value="6" />日</label>
         </div></div>
-      </div>
-      <div class="dialog-actions"><button type="button" class="button" data-close-dialog>取消</button><button class="button primary" type="submit">创建</button></div>
-    </form>
-  </dialog>
-
-  <dialog id="contextDialog">
-    <form class="dialog-body" id="contextForm">
-      <span class="eyebrow">NEW CONTEXT</span>
-      <h3>添加一块背景条件</h3>
-      <div class="dialog-grid">
-        <label class="field full"><span>名称</span><input name="title" required placeholder="例如：云计算课" /></label>
-        <label class="field"><span>星期</span><select name="day"><option value="0">周一</option><option value="1">周二</option><option value="2">周三</option><option value="3">周四</option><option value="4">周五</option><option value="5">周六</option><option value="6">周日</option></select></label>
-        <label class="field"><span>地点</span><input name="location" placeholder="教室 / 宿舍 / 图书馆" /></label>
-        <label class="field"><span>开始</span><input name="start" type="time" value="08:50" required /></label>
-        <label class="field"><span>结束</span><input name="end" type="time" value="10:25" required /></label>
-        <label class="field"><span>精力</span><select name="energy"><option value="">—</option><option>低</option><option>中</option><option>高</option></select></label>
-        <label class="field"><span>自由度</span><select name="freedom"><option value="">—</option><option>低</option><option>中</option><option>高</option></select></label>
       </div>
       <div class="dialog-actions"><button type="button" class="button" data-close-dialog>取消</button><button class="button primary" type="submit">创建</button></div>
     </form>
