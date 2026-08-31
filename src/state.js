@@ -79,6 +79,7 @@ function childrenOf(id) {
 }
 
 function descendantsOf(id) {
+  if (!id) return [];
   const out = [];
   const walk = parentId => childrenOf(parentId).forEach(child => { out.push(child); walk(child.id); });
   walk(id);
@@ -100,7 +101,7 @@ function depthOf(id) {
 function canParent(childId, parentId) {
   if (!parentId) return true;
   if (childId === parentId) return false;
-  if (descendantsOf(childId).some(p => p.id === parentId)) return false;
+  if (childId && descendantsOf(childId).some(p => p.id === parentId)) return false;
   return depthOf(parentId) + 1 < MAX_DEPTH;
 }
 
@@ -173,8 +174,8 @@ export const store = {
       parentId: parent?.id || null,
     };
     if (parent) {
-      item.start = Math.max(parent.start, Math.min(item.start, parent.start + parent.duration - item.duration));
       if (item.duration > parent.duration) item.duration = parent.duration;
+      item.start = Math.max(parent.start, Math.min(item.start, parent.start + parent.duration - item.duration));
     }
     state.placements.push(item);
     persist();
@@ -187,6 +188,12 @@ export const store = {
     const oldStart = item.start;
     const oldDay = item.day;
     Object.assign(item, patch);
+
+    if (patch.duration != null) {
+      const required = childrenOf(id).reduce((max, child) => Math.max(max, child.start + child.duration - item.start), 15);
+      item.duration = Math.max(item.duration, required);
+    }
+
     if (item.parentId) {
       const parent = placementById(item.parentId);
       if (parent) {
@@ -195,6 +202,7 @@ export const store = {
         item.start = Math.max(parent.start, Math.min(item.start, parent.start + parent.duration - item.duration));
       }
     }
+
     const delta = item.start - oldStart;
     if (delta || item.day !== oldDay) moveDescendants(id, item.day, delta);
     persist();
@@ -203,13 +211,13 @@ export const store = {
   movePlacement(id, { day, start, parentId = null }) {
     const item = placementById(id);
     if (!item || !canParent(id, parentId)) return;
+    const parent = parentId ? placementById(parentId) : null;
+    if (parentId && (!parent || item.duration > parent.duration)) return;
+
     const oldStart = item.start;
     item.parentId = parentId || null;
-    if (parentId) {
-      const parent = placementById(parentId);
-      if (!parent) return;
+    if (parent) {
       item.day = parent.day;
-      item.duration = Math.min(item.duration, parent.duration);
       item.start = Math.max(parent.start, Math.min(Number(start), parent.start + parent.duration - item.duration));
     } else {
       item.day = Number(day);
