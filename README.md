@@ -1,25 +1,36 @@
 # Time Box Web
 
-一个极简的、以周视图为核心的 Timebox 原型。
+一个以「Weekly Lego Board」为核心的个人 Timeboxing 实验。
 
-## V0 的三个概念
+## 核心模型
 
-- **Context Block**：某段时间的客观环境或约束，例如课程、地点、精力、自由度。它是背景，不代表你必须做某件事。
-- **Activity**：事情本身，例如阅读、锻炼、写作业。可以带预计时长、重复日、偏好时间、时间刚性。
-- **Placement**：某个 Activity 在某一天、某个时间位置的一次具体安排。同一个 Activity 可以有很多 Placement，而且每一天的位置可以不同。
+- **Context**：某段时间的客观环境或约束，例如课程、地点、精力、自由度。它是一块背景底板，不代表你一定在做这件事。
+- **Activity**：事情本身，例如阅读、锻炼、写作。它像一种积木模具，可定义默认时长、重复日、时间刚性。
+- **Placement**：Activity 在某一天、某个位置的一次具体实例。同一个 Activity 可以在一周中出现多次，而且每天的位置不同。
 
-## 核心交互
+## 设计原则
 
-1. 左侧创建 Activity。
-2. 把 Activity 拖到周一到周日任意一天，生成一次 Placement。
-3. 已生成的 Placement 可以继续拖动到别的时间或别的天。
-4. 双击 Placement 可以精确修改时间和本次时长。
-5. Context Block 作为背景显示，可以和 Placement 重叠。
-6. 重复 Activity 可以“一键铺到本周”，之后每个实例仍可独立移动。
-7. 数据使用 `localStorage` 保存在当前浏览器，无后端。
+时间是骨架，不是界面主角。默认视图强调「积木」和「底板」；只有拖动或调整时，具体时间与吸附线才变得明显。
 
-## 运行
+## 当前交互
 
-直接下载并打开 `index.html` 即可。
+- 从左侧积木盒把 Activity 拖进任意一天。
+- Placement 可跨天拖动。
+- 靠近 15 分钟网格、Context 边界、其他 Placement 边界时自动吸附。
+- 拖 Placement 底部可改变本次时长。
+- Context 作为半透明底板，可与 Placement 叠放。
+- 重复 Activity 可一键铺到本周，再逐日移动。
+- 右侧 Inspector 用于精确编辑当前选择。
+- 数据保存在浏览器 `localStorage`，暂无后端。
 
-当前版本是用于验证方法和交互模型的 V0，不追求完整的日历精度或复杂任务管理功能。
+## 架构
+
+```text
+index.html        页面骨架
+styles.css        视觉与布局
+src/state.js      数据模型、持久化、状态更新
+src/board.js      Weekly Board 渲染、拖拽、resize、吸附
+src/app.js        积木盒、Inspector、Dialog 与应用协调
+```
+
+这是无构建步骤的原生 ES Modules 前端，因此 GitHub Pages 可以直接从 `main / (root)` 发布。后续需要复杂组件、测试和打包时，再迁移到 Vite/TypeScript，不影响数据模型。
