@@ -1,178 +1,69 @@
 <!doctype html>
 <html lang="zh-CN">
 <head>
-<meta charset="utf-8" />
-<meta name="viewport" content="width=device-width,initial-scale=1" />
-<title>Time Box · Weekly Lego Board</title>
-<style>
-:root{
-  --bg:#0c0e11;--panel:#12151a;--panel2:#171b21;--line:#2a3038;--line2:#20252c;
-  --text:#f2f4f7;--muted:#8f98a7;--soft:#666f7e;--accent:#d9ff8d;--danger:#ff8b8b;
-  --board-h:820px;--radius:14px;
-}
-*{box-sizing:border-box}html,body{margin:0;min-height:100%;background:var(--bg);color:var(--text);font-family:Inter,ui-sans-serif,system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif}
-button,input,select{font:inherit}button{cursor:pointer}.app{min-height:100vh;display:grid;grid-template-rows:auto 1fr}
-header{height:60px;display:flex;align-items:center;justify-content:space-between;padding:0 16px;border-bottom:1px solid var(--line);background:#0d1013;position:sticky;top:0;z-index:60}
-.brand{display:flex;align-items:baseline;gap:10px}.brand strong{font-size:17px}.brand span{font-size:12px;color:var(--muted)}
-.actions{display:flex;gap:8px;flex-wrap:wrap}.btn{border:1px solid var(--line);background:var(--panel2);color:var(--text);border-radius:10px;padding:8px 11px}.btn:hover{border-color:#47505c}.btn.primary{background:var(--text);color:#11151a;border-color:var(--text);font-weight:750}.btn.ghost{background:transparent}.btn.danger{color:var(--danger)}.btn.small{padding:5px 8px;font-size:11px}
-.workspace{display:grid;grid-template-columns:220px minmax(980px,1fr);min-height:0}.tray{border-right:1px solid var(--line);background:#111419;padding:15px 12px;position:sticky;top:60px;height:calc(100vh - 60px);overflow:auto;z-index:25}
-.tray h2{font-size:11px;letter-spacing:.12em;color:var(--muted);margin:3px 3px 7px}.tray-note{font-size:11px;line-height:1.5;color:#707988;margin:0 3px 13px}.brick-list{display:grid;gap:9px}
-.template{position:relative;border:1px solid #353c46;border-radius:10px;background:#e9edf2;color:#15191e;padding:14px 10px 9px;user-select:none;cursor:grab;box-shadow:0 5px 16px rgba(0,0,0,.18)}
-.template::before,.placement::before{content:"";position:absolute;left:9px;right:9px;top:4px;height:6px;background:radial-gradient(circle at 4px 3px,#b8bec7 0 2.2px,transparent 2.5px) 0 0/18px 6px repeat-x;opacity:.72}
-.template.dragging{opacity:.45}.template-title{font-size:13px;font-weight:800;margin-bottom:5px}.template-meta{font-size:10px;color:#5e6671;display:flex;gap:5px;flex-wrap:wrap}.template-actions{display:flex;gap:6px;align-items:center;justify-content:space-between;margin-top:8px}.template-progress{font-size:10px;color:#68717c}
-.main{overflow:auto;padding:0 12px 28px}.week{min-width:1040px}.week-head{display:grid;grid-template-columns:58px repeat(7,minmax(132px,1fr));position:sticky;top:60px;z-index:30;background:var(--bg);border-bottom:1px solid var(--line)}
-.head-gutter{border-right:1px solid var(--line)}.day-head{padding:11px 10px 9px;border-right:1px solid var(--line)}.day-head strong{font-size:13px;display:block}.day-head span{font-size:10px;color:var(--muted)}
-.board{display:grid;grid-template-columns:58px repeat(7,minmax(132px,1fr));min-height:var(--board-h)}.soft-axis{position:relative;height:var(--board-h);border-right:1px solid var(--line);color:#646d79}.period{position:absolute;left:8px;font-size:9px;letter-spacing:.14em;writing-mode:vertical-rl;text-transform:uppercase}.period.m{top:7%}.period.a{top:44%}.period.e{top:78%}
-.axis-anchor{position:absolute;right:8px;font-size:9px;color:#7a8391;transform:translateY(-50%);opacity:.72}.axis-anchor.hidden{opacity:0}.soft-axis.dragging .axis-anchor{opacity:1}
-.day{position:relative;height:var(--board-h);border-right:1px solid var(--line);overflow:hidden;background:linear-gradient(to bottom,rgba(255,255,255,.012),rgba(255,255,255,.004))}.day::before,.day::after{content:"";position:absolute;left:0;right:0;border-top:1px dashed var(--line2);pointer-events:none}.day::before{top:36%}.day::after{top:70%}
-.day.active-drop{background:linear-gradient(to bottom,rgba(217,255,141,.035),rgba(217,255,141,.012))}.guide{position:absolute;left:0;right:0;height:1px;background:var(--accent);z-index:20;pointer-events:none}.guide::before{content:attr(data-time);position:absolute;right:5px;top:-11px;font-size:9px;font-weight:800;color:#111;background:var(--accent);padding:2px 5px;border-radius:5px}
-.context{position:absolute;left:6px;right:6px;z-index:2;border:1px solid #48515e;border-radius:12px;padding:18px 8px 8px;color:#b9c1cc;overflow:hidden;background-color:rgba(83,94,109,.15);background-image:radial-gradient(circle,rgba(171,183,197,.18) 1px,transparent 1.3px);background-size:10px 10px;cursor:pointer}
-.context::before{content:"BASE";position:absolute;top:5px;right:7px;font-size:7px;letter-spacing:.16em;color:#6f7987}.context-title{font-size:11px;font-weight:800}.context-meta{font-size:9px;color:#8d98a7;line-height:1.4;margin-top:3px}.context:hover{border-color:#657181}
-.placement{position:absolute;left:16%;right:7px;z-index:7;min-height:30px;border-radius:9px;background:#eff2f5;color:#15191d;padding:14px 8px 7px;box-shadow:0 7px 20px rgba(0,0,0,.24);user-select:none;touch-action:none;cursor:grab;overflow:hidden;border:1px solid rgba(255,255,255,.52)}
-.placement.dragging{cursor:grabbing;opacity:.88;z-index:50;box-shadow:0 13px 30px rgba(0,0,0,.38)}.placement-title{font-size:11px;font-weight:850;line-height:1.15}.placement-meta{font-size:9px;color:#646c76;margin-top:3px;white-space:nowrap}.placement .linked-dot{position:absolute;right:7px;top:7px;width:5px;height:5px;border-radius:50%;background:#4c5560}.resize{position:absolute;left:5px;right:5px;bottom:0;height:7px;cursor:ns-resize}.resize::after{content:"";position:absolute;width:22px;height:2px;border-radius:2px;background:#9ba3ac;left:50%;bottom:2px;transform:translateX(-50%);opacity:.55}
-.day.drag-mode .placement:not(.dragging){opacity:.72}.floating-time{position:fixed;z-index:90;pointer-events:none;padding:6px 8px;border-radius:8px;background:#0a0c0f;border:1px solid #404955;color:var(--text);font-size:11px;box-shadow:0 8px 25px rgba(0,0,0,.35)}
-.legend{display:flex;gap:12px;align-items:center;padding:10px 2px 7px;font-size:10px;color:var(--muted)}.key{display:flex;align-items:center;gap:5px}.swatch{width:18px;height:10px;border-radius:4px;border:1px solid #46505c;background:rgba(83,94,109,.16)}.swatch.brick{background:#edf0f4;border-color:#c9d0d7}
-.empty{border:1px dashed var(--line);border-radius:10px;padding:12px;color:#6f7886;font-size:11px}
-dialog{border:1px solid var(--line);border-radius:14px;background:#11151a;color:var(--text);padding:0;width:min(430px,calc(100vw - 24px));box-shadow:0 24px 80px rgba(0,0,0,.52)}dialog::backdrop{background:rgba(0,0,0,.6);backdrop-filter:blur(2px)}.dialog-body{padding:18px}.dialog-body h3{margin:0 0 15px;font-size:16px}.form-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px}.field{display:grid;gap:5px}.field.full{grid-column:1/-1}.field label{font-size:11px;color:var(--muted)}.field input,.field select{width:100%;border:1px solid var(--line);background:var(--panel2);color:var(--text);border-radius:8px;padding:8px 9px;outline:none}.checks{display:flex;gap:5px;flex-wrap:wrap}.checks label{border:1px solid var(--line);border-radius:7px;padding:6px 7px;color:var(--muted);cursor:pointer}.checks input{display:none}.checks label:has(input:checked){background:var(--text);color:#111;border-color:var(--text)}.dialog-actions{display:flex;align-items:center;justify-content:space-between;gap:8px;margin-top:16px}.dialog-actions .right{display:flex;gap:8px}
-@media(max-width:900px){.workspace{grid-template-columns:180px minmax(940px,1fr)}.tray{padding:12px 9px}}
-</style>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <meta name="color-scheme" content="dark" />
+  <title>Time Box · Weekly Lego Board</title>
+  <link rel="stylesheet" href="./styles.css" />
 </head>
 <body>
-<div class="app">
-<header>
-  <div class="brand"><strong>Time Box</strong><span>V1 · Weekly Lego Board</span></div>
-  <div class="actions"><button class="btn ghost" id="resetBtn">重置示例</button><button class="btn" id="addContext">＋ 底板</button><button class="btn primary" id="addActivity">＋ 积木</button></div>
-</header>
-<div class="workspace">
-  <aside class="tray">
-    <h2>积木盒</h2>
-    <p class="tray-note">拖一块到右边。上下只代表大概时间；拖动时才显示精确时间并自动吸附。</p>
-    <div id="brickList" class="brick-list"></div>
-  </aside>
-  <main class="main">
-    <div class="week">
-      <div class="legend"><span class="key"><i class="swatch"></i>Context 底板</span><span class="key"><i class="swatch brick"></i>Activity 积木</span><span>拖动积木底边可改时长</span></div>
-      <div id="weekHead" class="week-head"></div>
-      <div id="board" class="board"></div>
-    </div>
-  </main>
-</div>
-</div>
-<div id="floatTime" class="floating-time" hidden></div>
+  <div class="app-shell">
+    <header class="topbar">
+      <div class="brand"><strong>Time Box</strong><span>Weekly Lego Board · V2</span></div>
+      <div class="top-actions">
+        <button class="button" id="resetDemo">重置示例</button>
+        <button class="button" id="addContext">＋ Context</button>
+        <button class="button primary" id="addActivity">＋ Activity</button>
+      </div>
+    </header>
 
-<dialog id="activityDialog"><form id="activityForm" method="dialog" class="dialog-body">
-<h3 id="activityDialogTitle">积木</h3><input id="activityId" type="hidden">
-<div class="form-grid">
-  <div class="field full"><label>名称</label><input id="activityTitle" required placeholder="例如：阅读"></div>
-  <div class="field"><label>默认时长（分钟）</label><input id="activityDuration" type="number" min="10" step="5" value="30" required></div>
-  <div class="field"><label>偏好时间</label><input id="activityPreferred" type="time"></div>
-  <div class="field full"><label>它通常出现在哪些天？</label><div id="weekdayChecks" class="checks"></div></div>
-</div>
-<div class="dialog-actions"><button type="button" class="btn danger" id="deleteActivity" hidden>删除</button><div class="right"><button type="button" class="btn" data-close="activityDialog">取消</button><button class="btn primary" value="save">保存</button></div></div>
-</form></dialog>
+    <main class="workspace">
+      <aside class="side-panel library-panel" id="libraryRoot"></aside>
+      <section class="board-panel" id="boardRoot" aria-label="本周 Time Box 看板"></section>
+      <aside class="side-panel inspector-panel" id="inspectorRoot"></aside>
+    </main>
+  </div>
 
-<dialog id="contextDialog"><form id="contextForm" method="dialog" class="dialog-body">
-<h3>Context 底板</h3><input id="contextId" type="hidden">
-<div class="form-grid">
-  <div class="field full"><label>名称</label><input id="contextTitle" required placeholder="例如：大数据课"></div>
-  <div class="field"><label>星期</label><select id="contextDay"></select></div>
-  <div class="field"><label>地点</label><input id="contextLocation" placeholder="教室 / 宿舍"></div>
-  <div class="field"><label>开始</label><input id="contextStart" type="time" required></div>
-  <div class="field"><label>结束</label><input id="contextEnd" type="time" required></div>
-  <div class="field"><label>精力</label><select id="contextEnergy"><option value="低">低</option><option value="中">中</option><option value="高">高</option><option value="放松">放松</option></select></div>
-  <div class="field"><label>自由度</label><select id="contextFreedom"><option value="低">低</option><option value="中">中</option><option value="高">高</option></select></div>
-</div>
-<div class="dialog-actions"><button type="button" class="btn danger" id="deleteContext" hidden>删除</button><div class="right"><button type="button" class="btn" data-close="contextDialog">取消</button><button class="btn primary" value="save">保存</button></div></div>
-</form></dialog>
+  <dialog id="activityDialog">
+    <form class="dialog-body" id="activityForm">
+      <span class="eyebrow">NEW ACTIVITY</span>
+      <h3>做一块新积木</h3>
+      <div class="dialog-grid">
+        <label class="field full"><span>名称</span><input name="title" required placeholder="例如：阅读" /></label>
+        <label class="field"><span>默认时长（分钟）</span><input name="duration" type="number" min="15" step="15" value="30" required /></label>
+        <label class="field"><span>时间刚性</span><select name="rigidity"><option value="flexible">Flexible</option><option value="approx" selected>Approx</option><option value="fixed">Fixed</option></select></label>
+        <div class="field full"><span>重复日（可选）</span><div class="repeat-row">
+          <label><input type="checkbox" name="repeatDay" value="0" />一</label>
+          <label><input type="checkbox" name="repeatDay" value="1" />二</label>
+          <label><input type="checkbox" name="repeatDay" value="2" />三</label>
+          <label><input type="checkbox" name="repeatDay" value="3" />四</label>
+          <label><input type="checkbox" name="repeatDay" value="4" />五</label>
+          <label><input type="checkbox" name="repeatDay" value="5" />六</label>
+          <label><input type="checkbox" name="repeatDay" value="6" />日</label>
+        </div></div>
+      </div>
+      <div class="dialog-actions"><button type="button" class="button" data-close-dialog>取消</button><button class="button primary" type="submit">创建</button></div>
+    </form>
+  </dialog>
 
-<dialog id="placementDialog"><form id="placementForm" method="dialog" class="dialog-body">
-<h3>这一次怎么放</h3><input id="placementId" type="hidden">
-<div class="form-grid">
-  <div class="field full"><label>积木</label><input id="placementName" disabled></div>
-  <div class="field"><label>星期</label><select id="placementDay"></select></div>
-  <div class="field"><label>开始</label><input id="placementStart" type="time" required></div>
-  <div class="field"><label>时长（分钟）</label><input id="placementDuration" type="number" min="10" step="5" required></div>
-</div>
-<div class="dialog-actions"><button type="button" class="btn danger" id="deletePlacement">删除这一次</button><div class="right"><button type="button" class="btn" data-close="placementDialog">取消</button><button class="btn primary" value="save">保存</button></div></div>
-</form></dialog>
+  <dialog id="contextDialog">
+    <form class="dialog-body" id="contextForm">
+      <span class="eyebrow">NEW CONTEXT</span>
+      <h3>添加一块背景条件</h3>
+      <div class="dialog-grid">
+        <label class="field full"><span>名称</span><input name="title" required placeholder="例如：云计算课" /></label>
+        <label class="field"><span>星期</span><select name="day"><option value="0">周一</option><option value="1">周二</option><option value="2">周三</option><option value="3">周四</option><option value="4">周五</option><option value="5">周六</option><option value="6">周日</option></select></label>
+        <label class="field"><span>地点</span><input name="location" placeholder="教室 / 宿舍 / 图书馆" /></label>
+        <label class="field"><span>开始</span><input name="start" type="time" value="08:50" required /></label>
+        <label class="field"><span>结束</span><input name="end" type="time" value="10:25" required /></label>
+        <label class="field"><span>精力</span><select name="energy"><option value="">—</option><option>低</option><option>中</option><option>高</option></select></label>
+        <label class="field"><span>自由度</span><select name="freedom"><option value="">—</option><option>低</option><option>中</option><option>高</option></select></label>
+      </div>
+      <div class="dialog-actions"><button type="button" class="button" data-close-dialog>取消</button><button class="button primary" type="submit">创建</button></div>
+    </form>
+  </dialog>
 
-<script>
-(()=>{
-const DAYS=['周一','周二','周三','周四','周五','周六','周日'];
-const START=7*60,END=24*60,SPAN=END-START,BOARD_H=820,KEY='timebox-lego-v1';
-const $=s=>document.querySelector(s), $$=s=>[...document.querySelectorAll(s)];
-const uid=p=>p+Math.random().toString(36).slice(2,9);
-const toMin=t=>{const [h,m]=t.split(':').map(Number);return h*60+m};
-const toTime=m=>{m=Math.max(0,Math.min(1439,Math.round(m)));return String(Math.floor(m/60)).padStart(2,'0')+':'+String(m%60).padStart(2,'0')};
-const yFromMin=m=>((m-START)/SPAN)*BOARD_H;
-const minFromY=y=>START+(Math.max(0,Math.min(BOARD_H,y))/BOARD_H)*SPAN;
-const snap=(m,step=10)=>Math.round(m/step)*step;
-const clamp=(v,a,b)=>Math.max(a,Math.min(b,v));
-
-const sample=()=>({
- activities:[
-  {id:'a-read',title:'阅读',duration:30,repeatDays:[0,1,2,3,4],preferred:'21:00'},
-  {id:'a-gym',title:'锻炼',duration:60,repeatDays:[0,1,2,3,4],preferred:'16:20'},
-  {id:'a-own',title:'自己的事情',duration:70,repeatDays:[],preferred:'09:05'}
- ],
- contexts:[
-  {id:'c1',day:0,title:'大数据课',location:'教室',start:'08:50',end:'10:25',energy:'中',freedom:'高'},
-  {id:'c2',day:0,title:'云计算',location:'教室',start:'10:40',end:'12:15',energy:'中',freedom:'高'},
-  {id:'c3',day:2,title:'课程',location:'教室',start:'08:50',end:'10:25',energy:'中',freedom:'高'}
- ],
- placements:[
-  {id:'p-own',activityId:'a-own',day:0,start:'09:05',duration:70},
-  {id:'p-g0',activityId:'a-gym',day:0,start:'16:10',duration:60},{id:'p-g1',activityId:'a-gym',day:1,start:'16:40',duration:60},{id:'p-g2',activityId:'a-gym',day:2,start:'15:50',duration:60},{id:'p-g3',activityId:'a-gym',day:3,start:'16:20',duration:60},{id:'p-g4',activityId:'a-gym',day:4,start:'17:00',duration:60},
-  {id:'p-r0',activityId:'a-read',day:0,start:'21:00',duration:30},{id:'p-r1',activityId:'a-read',day:1,start:'20:30',duration:30},{id:'p-r2',activityId:'a-read',day:2,start:'22:00',duration:30},{id:'p-r3',activityId:'a-read',day:3,start:'19:30',duration:30},{id:'p-r4',activityId:'a-read',day:4,start:'21:30',duration:30}
- ]
-});
-let state=(()=>{try{return JSON.parse(localStorage.getItem(KEY))||sample()}catch{return sample()}})();
-const save=()=>localStorage.setItem(KEY,JSON.stringify(state));
-const activity=id=>state.activities.find(x=>x.id===id);
-
-function currentMonday(){const d=new Date(),day=(d.getDay()+6)%7;d.setHours(12,0,0,0);d.setDate(d.getDate()-day);return d}
-function renderHead(){const h=$('#weekHead');h.innerHTML='<div class="head-gutter"></div>';const mon=currentMonday();DAYS.forEach((n,i)=>{const d=new Date(mon);d.setDate(mon.getDate()+i);const el=document.createElement('div');el.className='day-head';el.innerHTML=`<strong>${n}</strong><span>${d.getMonth()+1}/${d.getDate()}</span>`;h.appendChild(el)})}
-function axis(){const a=document.createElement('div');a.className='soft-axis';a.innerHTML='<span class="period m">MORNING</span><span class="period a">AFTERNOON</span><span class="period e">EVENING</span>';[8,9,10,12,14,16,18,20,22,23].forEach(h=>{const s=document.createElement('span');s.className='axis-anchor hidden';s.style.top=yFromMin(h*60)+'px';s.textContent=String(h).padStart(2,'0');a.appendChild(s)});return a}
-function renderBoard(){const b=$('#board');b.innerHTML='';b.appendChild(axis());for(let d=0;d<7;d++){const col=document.createElement('div');col.className='day';col.dataset.day=d;col.addEventListener('dragover',onTemplateOver);col.addEventListener('dragleave',()=>col.classList.remove('active-drop'));col.addEventListener('drop',onTemplateDrop);state.contexts.filter(x=>x.day===d).forEach(c=>col.appendChild(contextEl(c)));state.placements.filter(x=>x.day===d).forEach(p=>col.appendChild(placementEl(p)));b.appendChild(col)}}
-function contextEl(c){const el=document.createElement('div');el.className='context';el.dataset.id=c.id;const s=toMin(c.start),e=toMin(c.end);el.style.top=yFromMin(s)+'px';el.style.height=Math.max(42,yFromMin(e)-yFromMin(s))+'px';el.innerHTML=`<div class="context-title">${esc(c.title)}</div><div class="context-meta">${c.start}–${c.end}${c.location?' · '+esc(c.location):''}<br>精力 ${c.energy} · 自由度 ${c.freedom}</div>`;el.addEventListener('dblclick',()=>openContext(c));return el}
-function placementEl(p){const a=activity(p.activityId);if(!a)return document.createTextNode('');const el=document.createElement('div');el.className='placement';el.dataset.id=p.id;const s=toMin(p.start);el.style.top=yFromMin(s)+'px';el.style.height=Math.max(30,(p.duration/SPAN)*BOARD_H)+'px';el.innerHTML=`<span class="linked-dot"></span><div class="placement-title">${esc(a.title)}</div><div class="placement-meta">${p.start} · ${p.duration}m</div><div class="resize" title="拖动改变时长"></div>`;el.addEventListener('pointerdown',e=>{if(e.target.classList.contains('resize'))startResize(e,p,el);else startMove(e,p,el)});el.addEventListener('dblclick',e=>{if(!dragState){e.stopPropagation();openPlacement(p)}});return el}
-function renderTray(){const box=$('#brickList');box.innerHTML='';if(!state.activities.length){box.innerHTML='<div class="empty">还没有积木。</div>';return}state.activities.forEach(a=>{const el=document.createElement('div');el.className='template';el.draggable=true;el.dataset.id=a.id;const count=state.placements.filter(p=>p.activityId===a.id).length;el.innerHTML=`<div class="template-title">${esc(a.title)}</div><div class="template-meta"><span>≈ ${a.duration}m</span>${a.preferred?`<span>${a.preferred} 左右</span>`:''}</div><div class="template-actions"><span class="template-progress">${count} 次实例</span><span>${a.repeatDays?.length?'<button class="btn small spread">铺到本周</button>':''}<button class="btn small edit">编辑</button></span></div>`;el.addEventListener('dragstart',e=>{e.dataTransfer.setData('text/activity',a.id);e.dataTransfer.effectAllowed='copy';el.classList.add('dragging');showDragMode(true)});el.addEventListener('dragend',()=>{el.classList.remove('dragging');clearGuides();showDragMode(false)});el.querySelector('.edit').addEventListener('click',e=>{e.preventDefault();e.stopPropagation();openActivity(a)});const sp=el.querySelector('.spread');if(sp)sp.addEventListener('click',e=>{e.preventDefault();e.stopPropagation();spreadWeek(a)});box.appendChild(el)})}
-function render(){renderHead();renderTray();renderBoard()}
-
-function onTemplateOver(e){e.preventDefault();const col=e.currentTarget;col.classList.add('active-drop');const rect=col.getBoundingClientRect();const m=snap(minFromY(e.clientY-rect.top));showGuide(col,m);showFloat(e.clientX,e.clientY,m)}
-function onTemplateDrop(e){e.preventDefault();const col=e.currentTarget;const id=e.dataTransfer.getData('text/activity');const a=activity(id);if(!a)return;const rect=col.getBoundingClientRect();const m=clamp(snap(minFromY(e.clientY-rect.top)),START,END-a.duration);state.placements.push({id:uid('p-'),activityId:id,day:+col.dataset.day,start:toTime(m),duration:a.duration});save();hideFloat();render()}
-function showGuide(col,m){clearGuides();const g=document.createElement('div');g.className='guide';g.dataset.time='≈ '+toTime(m);g.style.top=yFromMin(m)+'px';col.appendChild(g)}
-function clearGuides(){ $$('.guide').forEach(x=>x.remove());$$('.day').forEach(x=>x.classList.remove('active-drop'));hideFloat()}
-function showDragMode(on){$('.soft-axis')?.classList.toggle('dragging',on);$$('.day').forEach(x=>x.classList.toggle('drag-mode',on))}
-function showFloat(x,y,m,dur){const f=$('#floatTime');f.hidden=false;f.style.left=(x+14)+'px';f.style.top=(y+14)+'px';f.textContent='≈ '+toTime(m)+(dur?' · '+dur+'m':'')}
-function hideFloat(){$('#floatTime').hidden=true}
-
-let dragState=null;
-function startMove(e,p,el){if(e.button!==0)return;e.preventDefault();const startRect=el.getBoundingClientRect();dragState={type:'move',p,el,offsetY:e.clientY-startRect.top};el.classList.add('dragging');el.setPointerCapture(e.pointerId);showDragMode(true);el.addEventListener('pointermove',movePlacement);el.addEventListener('pointerup',endMove,{once:true});el.addEventListener('pointercancel',endMove,{once:true})}
-function movePlacement(e){if(!dragState)return;const hit=document.elementFromPoint(e.clientX,e.clientY);const col=hit?.closest?.('.day');if(!col)return;const rect=col.getBoundingClientRect();const rawY=e.clientY-rect.top-dragState.offsetY;let m=clamp(minFromY(rawY),START,END-dragState.p.duration);m=snap(m,5);const snapPts=[...state.contexts.filter(c=>c.day===+col.dataset.day).flatMap(c=>[toMin(c.start),toMin(c.end)]),9*60,12*60,16*60,18*60,20*60,22*60];for(const s of snapPts){if(Math.abs(yFromMin(m)-yFromMin(s))<8){m=s;break}}$$('.day').forEach(x=>x.classList.remove('active-drop'));col.classList.add('active-drop');showGuide(col,m);showFloat(e.clientX,e.clientY,m,dragState.p.duration);dragState.preview={day:+col.dataset.day,start:toTime(m)}}
-function endMove(e){if(!dragState)return;const {el,p,preview}=dragState;try{el.releasePointerCapture(e.pointerId)}catch{}el.removeEventListener('pointermove',movePlacement);el.classList.remove('dragging');if(preview){p.day=preview.day;p.start=preview.start;save()}dragState=null;clearGuides();showDragMode(false);render()}
-function startResize(e,p,el){if(e.button!==0)return;e.preventDefault();e.stopPropagation();dragState={type:'resize',p,el,startY:e.clientY,startDuration:p.duration};el.classList.add('dragging');el.setPointerCapture(e.pointerId);showDragMode(true);const move=ev=>{const delta=((ev.clientY-dragState.startY)/BOARD_H)*SPAN;const dur=clamp(snap(dragState.startDuration+delta,5),10,360);dragState.previewDuration=dur;el.style.height=Math.max(30,(dur/SPAN)*BOARD_H)+'px';showFloat(ev.clientX,ev.clientY,toMin(p.start),dur)};const end=ev=>{try{el.releasePointerCapture(ev.pointerId)}catch{}el.removeEventListener('pointermove',move);el.classList.remove('dragging');if(dragState.previewDuration)p.duration=dragState.previewDuration;save();dragState=null;hideFloat();showDragMode(false);render()};el.addEventListener('pointermove',move);el.addEventListener('pointerup',end,{once:true});el.addEventListener('pointercancel',end,{once:true})}
-
-function spreadWeek(a){const days=a.repeatDays||[];if(!days.length)return;const start=a.preferred||'20:00';days.forEach(d=>{if(!state.placements.some(p=>p.activityId===a.id&&p.day===d))state.placements.push({id:uid('p-'),activityId:a.id,day:d,start,duration:a.duration})});save();render()}
-function esc(s=''){return String(s).replace(/[&<>'"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;',"'":'&#39;','"':'&quot;'}[c]))}
-
-function fillDaySelect(sel){sel.innerHTML=DAYS.map((d,i)=>`<option value="${i}">${d}</option>`).join('')}
-function buildChecks(){const box=$('#weekdayChecks');box.innerHTML=DAYS.map((d,i)=>`<label><input type="checkbox" value="${i}">${d.slice(1)}</label>`).join('')}
-function openActivity(a=null){$('#activityDialogTitle').textContent=a?'编辑积木':'新积木';$('#activityId').value=a?.id||'';$('#activityTitle').value=a?.title||'';$('#activityDuration').value=a?.duration||30;$('#activityPreferred').value=a?.preferred||'';$$('#weekdayChecks input').forEach(x=>x.checked=!!a?.repeatDays?.includes(+x.value));$('#deleteActivity').hidden=!a;$('#activityDialog').showModal()}
-function openContext(c=null){$('#contextId').value=c?.id||'';$('#contextTitle').value=c?.title||'';$('#contextDay').value=c?.day??0;$('#contextLocation').value=c?.location||'';$('#contextStart').value=c?.start||'08:50';$('#contextEnd').value=c?.end||'10:25';$('#contextEnergy').value=c?.energy||'中';$('#contextFreedom').value=c?.freedom||'高';$('#deleteContext').hidden=!c;$('#contextDialog').showModal()}
-function openPlacement(p){const a=activity(p.activityId);$('#placementId').value=p.id;$('#placementName').value=a?.title||'';$('#placementDay').value=p.day;$('#placementStart').value=p.start;$('#placementDuration').value=p.duration;$('#placementDialog').showModal()}
-
-$('#activityForm').addEventListener('submit',e=>{e.preventDefault();const id=$('#activityId').value;const data={title:$('#activityTitle').value.trim(),duration:+$('#activityDuration').value,preferred:$('#activityPreferred').value,repeatDays:$$('#weekdayChecks input:checked').map(x=>+x.value)};if(!data.title)return;if(id){Object.assign(activity(id),data)}else state.activities.push({id:uid('a-'),...data});save();$('#activityDialog').close();render()});
-$('#contextForm').addEventListener('submit',e=>{e.preventDefault();const id=$('#contextId').value;const start=$('#contextStart').value,end=$('#contextEnd').value;if(toMin(end)<=toMin(start))return alert('结束时间要晚于开始时间');const data={title:$('#contextTitle').value.trim(),day:+$('#contextDay').value,location:$('#contextLocation').value.trim(),start,end,energy:$('#contextEnergy').value,freedom:$('#contextFreedom').value};if(id)Object.assign(state.contexts.find(x=>x.id===id),data);else state.contexts.push({id:uid('c-'),...data});save();$('#contextDialog').close();render()});
-$('#placementForm').addEventListener('submit',e=>{e.preventDefault();const p=state.placements.find(x=>x.id===$('#placementId').value);if(!p)return;p.day=+$('#placementDay').value;p.start=$('#placementStart').value;p.duration=+$('#placementDuration').value;save();$('#placementDialog').close();render()});
-$('#deleteActivity').addEventListener('click',()=>{const id=$('#activityId').value;state.activities=state.activities.filter(x=>x.id!==id);state.placements=state.placements.filter(x=>x.activityId!==id);save();$('#activityDialog').close();render()});
-$('#deleteContext').addEventListener('click',()=>{const id=$('#contextId').value;state.contexts=state.contexts.filter(x=>x.id!==id);save();$('#contextDialog').close();render()});
-$('#deletePlacement').addEventListener('click',()=>{const id=$('#placementId').value;state.placements=state.placements.filter(x=>x.id!==id);save();$('#placementDialog').close();render()});
-$$('[data-close]').forEach(b=>b.addEventListener('click',()=>$('#'+b.dataset.close).close()));
-$('#addActivity').addEventListener('click',()=>openActivity());$('#addContext').addEventListener('click',()=>openContext());
-$('#resetBtn').addEventListener('click',()=>{if(confirm('恢复 V1 示例？当前本地数据会被覆盖。')){state=sample();save();render()}});
-fillDaySelect($('#contextDay'));fillDaySelect($('#placementDay'));buildChecks();render();
-})();
-</script>
+  <script type="module" src="./src/app.js"></script>
 </body>
 </html>
