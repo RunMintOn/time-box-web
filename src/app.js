@@ -49,9 +49,13 @@ function renderLibrary() {
     card.addEventListener('dragstart', e => {
       e.dataTransfer.setData('text/activity-id', card.dataset.activity);
       e.dataTransfer.effectAllowed = 'copy';
+      document.body.dataset.dragActivity = card.dataset.activity;
       card.classList.add('is-dragging');
     });
-    card.addEventListener('dragend', () => card.classList.remove('is-dragging'));
+    card.addEventListener('dragend', () => {
+      delete document.body.dataset.dragActivity;
+      card.classList.remove('is-dragging');
+    });
     card.addEventListener('click', e => {
       if (e.target.closest('[data-spread]')) return;
       store.select('activity', card.dataset.activity);
@@ -90,7 +94,10 @@ function inheritedTraits(p) {
     current = store.placementById(current.parentId);
     if (current) chain.unshift(store.activityById(current.activityId)?.traits || {});
   }
-  return chain.reduce((acc, traits) => ({ ...acc, ...Object.fromEntries(Object.entries(traits).filter(([, v]) => v)) }), { ...own });
+  const inherited = {};
+  chain.forEach(traits => Object.entries(traits).forEach(([key, value]) => { if (value) inherited[key] = value; }));
+  Object.entries(own).forEach(([key, value]) => { if (value) inherited[key] = value; });
+  return inherited;
 }
 
 function renderInspector() {
